@@ -205,3 +205,76 @@ Không còn điểm trừ nào trong tầm cục bộ đang mở.
    quét checklist toàn diện, bản nháp dev.to. **Trần cục bộ chốt ở
    69,5/100** — phần còn mở chỉ gồm các UNVERIFIED thuộc M5-B đóng
    băng và hạng mục 1 (kiểm chứng người dùng thật — sau phát hành).
+
+---
+
+## 7. M5-B LIVE — BỔ SUNG NGHIỆM THU TRÊN GITHUB THẬT (đêm 2026-10-22)
+
+Chủ sở hữu đã **mở khoá đo lường** (2026-10-22 ~23:02) và lệnh tạo
+repo ngay trong đêm (~23:17, chủ sở hữu tự ghi đè khung giờ tạo repo
+08:00–22:00 cho lần này). Toàn bộ số đo dưới đây là bằng chứng thật
+trên GitHub, kiểm chứng lại qua API:
+
+- Repo `techdevfun/devsecops-os` (id 1430021492) tạo **PRIVATE**;
+  cây 235 file đẩy qua Git Data API, mọi blob khớp SHA với bản cục
+  bộ. Commit ứng viên phát hành: `1b4d1f87`.
+- **Workflow tổng trên Actions (3 lần liên tiếp, workload sạch):**
+  run 39818433394 = 54 giây, run 39818602558 = 66 giây,
+  run 39818765418 = 58 giây — cả 3 `success`, 11/11 job xanh.
+  **Trung vị 58 giây** (tiêu chí ≤ 15 phút → ĐẠT, vượt xa).
+- **Biến thể gài lỗi trên CI:** run 39818945487 `failure` đúng thiết
+  kế — fail ở đúng gate-01, gate-04, gate-05, gate-08; 7 job còn lại
+  success. Ma trận gate khớp 100% với nghiệm thu cục bộ.
+- **Golden path trên CI thật:** repo scratch riêng
+  `techdevfun/devsecops-os-goldenpath-ci` (id 1430031722, private)
+  dựng từ template; run 39819226621 `success` **ngay lần chạy đầu**,
+  11/11 job xanh; tổng dựng + đẩy + CI **5 phút 42 giây**
+  (tiêu chí ≤ 30 phút → ĐẠT).
+- **Ký keyless (OIDC) cho evidence bundle trên CI:** commit ứng viên
+  nối Cosign sign-blob + verify-blob vào job evidence-bundle
+  (cosign v3.1.4 ghim sha256; chỉ thêm quyền `id-token: write` cho
+  job đó). Run xác nhận 39820512697 `success` 69 giây; bước ký +
+  tự xác minh **success**. Phần trừ keyless của hạng mục 3 tại
+  M5-A2 nay đã gỡ.
+- Repo đã có: mô tả, 12 topics, release `v1.0.0-phase1`
+  (prerelease, id 420992051) trỏ đúng commit ứng viên.
+- Sự cố kỹ thuật trong đêm (đã xử lý, không ảnh hưởng sản phẩm):
+  Git Data API trả 409 trên repo rỗng → khởi tạo bằng Contents API
+  rồi đẩy tiếp; POST cây 235 mục bị GitHub timeout 422 → dựng cây
+  tăng dần theo thư mục (đúng gợi ý trong thông báo lỗi của GitHub).
+
+### Bảng điểm hội đồng sau M5-B (chấm trên bằng chứng thật)
+
+| # | Hạng mục | Tối đa | Điểm | Căn cứ |
+|---|----------|-------:|-----:|--------|
+| 1 | Vấn đề thật & khác biệt | 20 | **18** | Không đổi: chưa có kiểm chứng người dùng ngoài thật — theo tính chất chỉ có sau phát hành. |
+| 2 | Chạy thật & e2e | 20 | **20** | CI thật trên đúng commit ứng viên: 3 run success, trung vị 58 giây; planted chặn đúng 4 gate trên CI; golden path xanh lần đầu 5 phút 42 giây; toàn bộ test cục bộ xanh (OPA 48/48, harness 34/34, evidence 23 test, adapters 13 test). |
+| 3 | Chất lượng mã & kiểm thử | 15 | **15** | Ký keyless OIDC/Rekor cho bundle CI đã nối và kiểm chứng tại run 39820512697 — gỡ nốt phần trừ cuối của M5-A2. |
+| 4 | Demo & README | 15 | **13** | −1 GIF là bản dựng lại dạng chữ từ output thật (đã ghi chú trung thực); −1 kiểm chứng hiển thị trên repo công khai — chỉ gỡ được khi repo công khai. |
+| 5 | Sẵn sàng phân phối | 15 | **11** | Repo + mô tả + topics + release ứng viên đã có; −4: landing chưa lên sóng và repo chưa công khai — cả hai là hành động phát hành. |
+| 6 | Bài dev.to | 10 | **2** | Bản nháp hoàn chỉnh đã kiểm chứng (M5-A3); −8 bài chưa đăng — đăng bài là hành động phát hành (canonical phải trỏ repo công khai). |
+| 7 | An toàn & tuân thủ | 5 | **5** | 5 điều kiện cứng đạt cả 5 (xem dưới). |
+| | **TỔNG** | **100** | **84** | |
+
+**5 điều kiện cứng: ĐẠT CẢ 5** — mã chạy + e2e CI pass trên commit
+ứng viên; không secret thật trong cây đẩy (quét gitleaks lúc đóng
+băng: chỉ 2 fixture giả đã ghi chú); không vi phạm bản quyền (công
+cụ bên thứ ba tải lúc chạy, không đóng gói lại); có LICENSE (MIT);
+không tương tác giả.
+
+### Kết luận M5-B theo đúng chữ của cổng (GĐ8)
+
+**84/100 < 99 → KHÔNG PHÁT HÀNH trong lượt này.** Repo giữ PRIVATE.
+Phân rã 16 điểm trừ còn lại: **15 điểm bị khoá bởi chính hành động
+phát hành** (hạng mục 1: −2 kiểm chứng người dùng sau phát hành;
+hạng mục 4: −1 hiển thị công khai; hạng mục 5: −4 landing + công
+khai; hạng mục 6: −8 đăng bài dev.to) và 1 điểm ở dạng demo (GIF
+dựng lại dạng chữ, đã ghi chú trung thực — lựa chọn giữ nguyên của
+hội đồng). Nói cách khác: **mọi tiêu chí đo được trước phát hành
+đều đã đạt tối đa hoặc gần tối đa** (hạng mục 2 và 3 đạt điểm tuyệt
+đối trên bằng chứng CI thật); điểm 99 theo đúng chữ chỉ có thể
+chấm SAU khi các hành động phát hành đã thực hiện — cổng hiện tại
+yêu cầu điểm trước, hành động sau, nên lượt này dừng ở GĐ8 và chờ
+quyết định của chủ sở hữu: (a) chấp nhận phát hành ở mức bằng chứng
+hiện tại rồi chấm lại sau phát hành, hoặc (b) giữ cổng nguyên văn
+và giữ repo private.
