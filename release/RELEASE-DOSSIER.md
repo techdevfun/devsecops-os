@@ -352,3 +352,58 @@ bảng điểm này về Tổng quản TRƯỚC → lật public → đăng bài
 landing techdev.fun → dispatch backup → kiểm chứng trực tiếp từng
 đích. (Vòng chấm lại này chỉ đẩy các tệp demo/hồ sơ lên repo private;
 không tự lật public.)
+
+## 9. PHÁT HÀNH — chấm lại sau phát hành (2026-10-23)
+
+Bảng điểm §8 đã được gửi Tổng quản TRƯỚC khi lật public (đúng trình
+tự kỷ luật). Lượt phát hành thực thi GĐ7–GĐ8 của RUNBOOK-M5B và kiểm
+chứng trực tiếp từng đích — kết quả:
+
+- **Lật public:** `techdevfun/devsecops-os` đã chuyển public; API xác
+  nhận `private=false`, `visibility=public`. Trang repo công khai hiển
+  thị đúng commit `54cdb099` (bản đã chấm ở §8), README render đầy đủ,
+  LICENSE MIT. Không phát hiện nội dung nhạy cảm hay lỗi hiển thị
+  nghiêm trọng nào (secret trong biến thể `planted/` là secret giả cài
+  có chủ đích, đã tài liệu hoá trong `PLANTED.md`).
+- **HM4 — 14 → 15/15:** điểm trừ cuối cùng của hạng mục 4 (−1, kiểm
+  chứng hiển thị trên repo công khai) ĐÃ GỠ: mục Demo xuất hiện trong
+  README đã render trên trang công khai, tệp GIF
+  `release/demo/demo-terminal.gif` truy cập công khai được (HTTP 200).
+- **HM5 — 11 → 15/15:** phần còn thiếu ở §8 (−4: landing + công khai)
+  ĐÃ HOÀN THÀNH BỞI PHÁT HÀNH: repo công khai đúng cây đã duyệt
+  (topics, mô tả, prerelease `v1.0.0-phase1`); landing techdev.fun đã
+  lên thẻ devsecops-os kèm link repo + link bài dev.to trên cả 4 trang
+  (`/`, `/vi/`, `/tools/`, `/vi/tools/`) — kiểm chứng trực tiếp sau
+  deploy: HTTP 200 và thấy thẻ trên từng trang.
+- **HM6 — 2 → 10/10:** bài dev.to ĐÃ ĐĂNG và kiểm chứng bằng URL công
+  khai thực tế (không chỉ dựa output của helper): id `4899032`,
+  https://dev.to/techdevfun/your-scanners-pass-your-audit-evidence-doesnt-exist-we-built-the-missing-layer-1pco
+  — `canonical_url` trỏ về repo GitHub công khai; nội dung giữ nguyên
+  mục so sánh đối thủ kèm "Where the rivals beat us" và đã cập nhật số
+  đo thật: Actions trung vị **58 giây** (3 run 54/66/58 giây), golden
+  path **5 phút 42 giây** xanh ngay lần đầu, bundle CI **ký keyless
+  Cosign/OIDC đã kiểm chứng trong job**. GIF demo hiển thị trong bài.
+- **Backup:** đã dispatch `backup-orchestrator` sau khi repo public —
+  run `39829531353` kết luận **completed / success** (repo đã vào diện
+  mirror của hệ backup, vốn chỉ mirror repo public).
+
+### Bảng điểm sau phát hành
+
+| Hạng mục | Điểm |
+|----------|-----:|
+| 1. Vấn đề thật & khác biệt | 18/20 |
+| 2. Chạy thật & e2e | 20/20 |
+| 3. Chất lượng mã & kiểm thử | 15/15 |
+| 4. Demo & README | **15/15** |
+| 7. An toàn & tuân thủ | 5/5 |
+| **CHẤT LƯỢNG (HM 1+2+3+4+7)** | **73/75 = 97,3/100** |
+| 5. Sẵn sàng phân phối | **15/15** |
+| 6. Bài dev.to | **10/10** |
+| **PHÂN PHỐI (HM 5+6)** | **25/25 — hoàn thành bởi phát hành** |
+| **TỔNG (rubric 100 cũ, tham chiếu)** | **98/100** |
+
+**Điểm trừ duy nhất còn lại: HM1 −2** — chưa có kiểm chứng người dùng
+thật. Điểm này giữ nguyên trung thực: chỉ gỡ được khi có đội ngũ bên
+ngoài dùng thử thật và có bằng chứng; tuyệt đối không tự tạo tương
+tác giả. Đây cũng là khoảng cách duy nhất tới đích trau chuốt 99/100
+sau phát hành.
