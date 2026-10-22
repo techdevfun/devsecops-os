@@ -27,15 +27,21 @@ họ, và không phải thêm một scanner nữa.
 > các ánh xạ trong tài liệu là **ánh xạ tham chiếu phục vụ chuẩn bị
 > kiểm toán, không phải chứng nhận tuân thủ**.
 
-## Demo (từ lần chạy thật)
+## Demo (quay thô từ lần chạy thật)
 
 ![Demo: gates chạy thật trên hai biến thể + kiểm chứng evidence bundle](release/demo/demo-terminal.gif)
 
-Bản ghi terminal dạng chữ và script tái hiện cùng lần chạy:
-[`release/demo/demo-transcript.txt`](release/demo/demo-transcript.txt),
-[`release/demo/replay.sh`](release/demo/replay.sh). Demo dựng từ output
-thật của bộ gates + kiểm chứng bundle trên hai biến thể của workload mẫu
-— không cảnh dàn dựng.
+GIF trên là **bản quay thô terminal**: một phiên thật chạy
+[`release/demo/replay.sh`](release/demo/replay.sh) được ghi nguyên bản
+bằng `script`, rồi dựng frame-theo-frame từ bản ghi thô
+([`release/demo/demo-raw.typescript`](release/demo/demo-raw.typescript)
+\+ tệp timing đi kèm) bằng trình giả lập VT — không gõ lại lệnh, không
+sửa một dòng output nào, giữ nguyên wrap dòng, màu thật của terminal và
+tốc độ phát thực 1.0×. Bản ghi dạng chữ của cùng phiên:
+[`release/demo/demo-transcript.txt`](release/demo/demo-transcript.txt).
+Nội dung: bộ gates chạy trên hai biến thể của workload mẫu + kiểm chứng
+evidence bundle + thử sửa 1 byte để thấy kiểm chứng FAIL — không cảnh
+dàn dựng.
 
 ## Ai đau, hệ này làm gì
 

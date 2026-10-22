@@ -1,4 +1,5 @@
-Script started on 2026-10-22 11:06:21+00:00 [COMMAND="bash replay.sh" <not executed on terminal>]
+Script started on 2026-10-22 17:57:13+00:00 [COMMAND="bash --rcfile /home/hatch/workspace/demo-capture-devsecops/demo-bashrc -i" TERM="xterm-256color" TTY="/dev/pts/1" COLUMNS="96" LINES="34"]
+$ bash release/demo/replay.sh
 
 [1;36m== devsecops-os — bản SẠCH (clean): kỳ vọng qua mọi gate ==[0m
 [gate 01] secret — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/clean
@@ -41,22 +42,27 @@ Script started on 2026-10-22 11:06:21+00:00 [COMMAND="bash replay.sh" <not execu
 -> mã thoát của gate: 1
 
 [1;36m== Evidence bundle — đóng gói + kiểm chứng một lệnh ==[0m
-  run=demo-clean  trạng thái=complete  records=20 (gồm 1 do collector sinh)  artefact=18  bị loại=0
-  gate chặn: không  gate tắt: [10]  truy vết đầy đủ: 6/14 hàng pha 1
+  run=demo-clean  trạng thái=complete  records=21 (gồm 2 do collector sinh)  artefact=18  bị loại=0
+  gate chặn: không  gate tắt: [10]  truy vết đầy đủ: 7/14 hàng pha 1
   Kiểm chứng: python3 evidence/verify_bundle.py /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/demo-clean
 Bundle: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/demo-clean
-  file được kiểm hash: 56 · record được kiểm schema: 20
+  file được kiểm hash: 58 · record được kiểm schema: 21
+  LƯU Ý: ci-log: hash gói log (artifacts/ci-logs/run-logs.zip) khớp khai báo trong record
+  LƯU Ý: bundle không có chữ ký mật mã — chỉ kiểm toàn vẹn bằng SHA-256
 KẾT QUẢ: PASS — mọi hash khớp manifest, mọi record khớp schema M2
 
 [1;36m== Thử phá hoại: sửa 1 byte trong bundle rồi kiểm chứng lại ==[0m
-đã sửa 1 byte trong control-evidence-index.record.json
+đã sửa 1 byte trong ci-log.record.json
 Bundle: /tmp/demo-tamper
-  file được kiểm hash: 56 · record được kiểm schema: 20
+  file được kiểm hash: 58 · record được kiểm schema: 21
+  LƯU Ý: bundle không có chữ ký mật mã — chỉ kiểm toàn vẹn bằng SHA-256
 KẾT QUẢ: FAIL
-  - hash không khớp: records/collector/control-evidence-index.record.json (manifest ghi d752c3ce0cdd1d9a…, thực tế d6a4a346393d4094… — file đã bị sửa đổi)
-  - records/collector/control-evidence-index.record.json: không đọc được JSON: 'utf-8' codec can't decode byte 0x8b in position 3075: invalid start byte
+  - hash không khớp: records/collector/ci-log.record.json (manifest ghi 5fea61ee86a28edc…, thực tế 48eda238acba629b… — file đã bị sửa đổi)
+  - records/collector/ci-log.record.json: không đọc được JSON: 'utf-8' codec can't decode byte 0xdf in position 486: invalid continuation byte
 -> kiểm chứng FAIL đúng như thiết kế (mã thoát 1)
 
 [1;36m== HẾT DEMO — mọi kết quả trên đều từ công cụ thật trong phiên chạy này ==[0m
+$ exit
+exit
 
-Script done on 2026-10-22 11:07:52+00:00 [COMMAND_EXIT_CODE="0"]
+Script done on 2026-10-22 17:57:46+00:00 [COMMAND_EXIT_CODE="0"]

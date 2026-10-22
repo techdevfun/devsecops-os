@@ -250,11 +250,11 @@ trên GitHub, kiểm chứng lại qua API:
 | 1 | Vấn đề thật & khác biệt | 20 | **18** | Không đổi: chưa có kiểm chứng người dùng ngoài thật — theo tính chất chỉ có sau phát hành. |
 | 2 | Chạy thật & e2e | 20 | **20** | CI thật trên đúng commit ứng viên: 3 run success, trung vị 58 giây; planted chặn đúng 4 gate trên CI; golden path xanh lần đầu 5 phút 42 giây; toàn bộ test cục bộ xanh (OPA 48/48, harness 34/34, evidence 23 test, adapters 13 test). |
 | 3 | Chất lượng mã & kiểm thử | 15 | **15** | Ký keyless OIDC/Rekor cho bundle CI đã nối và kiểm chứng tại run 39820512697 — gỡ nốt phần trừ cuối của M5-A2. |
-| 4 | Demo & README | 15 | **13** | −1 GIF là bản dựng lại dạng chữ từ output thật (đã ghi chú trung thực); −1 kiểm chứng hiển thị trên repo công khai — chỉ gỡ được khi repo công khai. |
+| 4 | Demo & README | 15 | **14** | Đã chấm lại 2026-10-23 (§8): GIF thay bằng bản QUAY THÔ terminal thật — phiên `script` chạy `replay.sh`, dựng frame-theo-frame từ bản ghi thô bằng giả lập VT, tốc độ thực 1.0×, không gõ lại/sửa output — gỡ điểm trừ "dựng lại dạng chữ". −1 còn lại: kiểm chứng hiển thị trên repo công khai — hoàn thành bởi chính hành động phát hành. |
 | 5 | Sẵn sàng phân phối | 15 | **11** | Repo + mô tả + topics + release ứng viên đã có; −4: landing chưa lên sóng và repo chưa công khai — cả hai là hành động phát hành. |
 | 6 | Bài dev.to | 10 | **2** | Bản nháp hoàn chỉnh đã kiểm chứng (M5-A3); −8 bài chưa đăng — đăng bài là hành động phát hành (canonical phải trỏ repo công khai). |
 | 7 | An toàn & tuân thủ | 5 | **5** | 5 điều kiện cứng đạt cả 5 (xem dưới). |
-| | **TỔNG** | **100** | **84** | |
+| | **TỔNG** | **100** | **85** | |
 
 **5 điều kiện cứng: ĐẠT CẢ 5** — mã chạy + e2e CI pass trên commit
 ứng viên; không secret thật trong cây đẩy (quét gitleaks lúc đóng
@@ -278,3 +278,77 @@ yêu cầu điểm trước, hành động sau, nên lượt này dừng ở GĐ
 quyết định của chủ sở hữu: (a) chấp nhận phát hành ở mức bằng chứng
 hiện tại rồi chấm lại sau phát hành, hoặc (b) giữ cổng nguyên văn
 và giữ repo private.
+
+## 8. CHẤM LẠI THEO CỔNG KHẢ THI — quyết định chủ sở hữu 2026-10-23 00:33
+
+**Quyết định của chủ sở hữu (2026-10-23 00:33, thay thế điều kiện
+"≥99 mới lật public" ở §6–§7 và mọi tài liệu trước):** áp **CỔNG PHÁT
+HÀNH KHẢ THI** cho cả hai flagship, rút bài học từ cổng giọng văn
+LinkedIn (thang tuyệt đối vận hành không nổi → trung vị cao + sàn từng
+ban + ghi đè có ghi chép). Cách chấm mới: **điểm CHẤT LƯỢNG** = tổng
+hạng mục 1+2+3+4+7 (tối đa 75) chuẩn hoá /100; **điểm PHÂN PHỐI** =
+hạng mục 5+6 (tối đa 25) theo dõi riêng và được hoàn thành BỞI hành
+động phát hành. Điều kiện lật public: chất lượng ≥ 95/100 VÀ sàn từng
+ban (HM1 ≥ 18/20, HM2 ≥ 18/20, HM3 ≥ 13,5/15, HM4 ≥ 13,5/15,
+HM7 = 5/5) VÀ 5 điều kiện cứng qua VÀ 0 rủi ro cao chưa xử lý.
+99/100 từ nay là **đích trau chuốt SAU phát hành**, không phải điều
+kiện phát hành. Kết luận GĐ8 ở §7 (dừng vì 84 < 99 theo cổng cũ) được
+thay thế bởi mục này.
+
+### Việc đã làm trong vòng chấm lại (2026-10-23)
+
+Điểm trừ cục bộ duy nhất còn sửa được là ở hạng mục 4: GIF demo là bản
+dựng lại dạng chữ từ output thật (−1). Đã làm lại bằng **quay thô
+terminal thật**, đúng kỹ thuật vừa đưa flagship #1
+(ai-pr-review-gate 0.4.3) lên 15/15 ở hạng mục tương ứng:
+
+- Phiên terminal thật chạy `bash release/demo/replay.sh` (gates 1/4/8
+  trên cả hai biến thể clean/planted + đóng gói & kiểm chứng evidence
+  bundle + ca sửa 1 byte → kiểm chứng FAIL đúng tệp), ghi nguyên bản
+  bằng `script` (util-linux) ngày 2026-10-23 00:57 giờ Việt Nam
+  (17:57:13–17:57:46 UTC, mã thoát phiên 0). Kết quả trong phiên khớp
+  kịch bản: clean qua cả 3 gate; planted bị DENY đúng gate 1 (secret),
+  gate 4 (network_exposure), gate 8 (CVE-2026-48710); bundle verify
+  PASS (58 tệp khớp hash, 21 record khớp schema); bản sửa 1 byte
+  (`ci-log.record.json`) → verify FAIL chỉ đúng tệp đó.
+- GIF dựng frame-theo-frame từ chính bản ghi thô
+  (`release/demo/demo-raw.typescript` + `demo-raw.timing` đi kèm) bằng
+  trình giả lập VT tối thiểu — không gõ lại lệnh, không sửa một dòng
+  output nào, không chèn chữ trình bày vào khung hình; giữ nguyên wrap
+  dòng và màu thật của terminal; phát lại tốc độ thực 1.0× (bản ghi
+  33,3 giây → GIF 34,5 giây, 24 frame, 774 KB). Transcript và ghi chú
+  trong README đã sửa cho khớp bản chất mới.
+- **Chấm lại bảo thủ, chỉ hạng mục 4: 13 → 14/15** (+1 — điểm trừ
+  "dựng lại dạng chữ" đã gỡ hẳn). Điểm trừ còn lại của hạng mục 4
+  (−1, kiểm chứng hiển thị trên repo công khai) thuộc diện hoàn thành
+  bởi hành động phát hành, không tự cộng trước.
+
+### Bảng điểm theo cổng khả thi
+
+| Hạng mục | Điểm | Sàn | Đạt sàn |
+|----------|-----:|----:|:-------:|
+| 1. Vấn đề thật & khác biệt | 18/20 | ≥ 18 | ✓ |
+| 2. Chạy thật & e2e | 20/20 | ≥ 18 | ✓ |
+| 3. Chất lượng mã & kiểm thử | 15/15 | ≥ 13,5 | ✓ |
+| 4. Demo & README | 14/15 | ≥ 13,5 | ✓ |
+| 7. An toàn & tuân thủ | 5/5 | = 5 | ✓ |
+| **CHẤT LƯỢNG (HM 1+2+3+4+7)** | **72/75 = 96,0/100** | **≥ 95** | **✓** |
+| 5. Sẵn sàng phân phối | 11/15 | — (theo dõi riêng) | |
+| 6. Bài dev.to | 2/10 | — (theo dõi riêng) | |
+| **PHÂN PHỐI (HM 5+6)** | **13/25** | hoàn thành bởi phát hành | |
+
+- **5 điều kiện cứng: ĐẠT CẢ 5** (không đổi từ §7 — thay đổi vòng này
+  chỉ là tệp demo/tài liệu, không đụng mã hay cây phát hành).
+- **Rủi ro cao chưa xử lý: 0** (quét rủi ro trước phát hành ở M5-B;
+  vòng này không phát sinh rủi ro mới).
+- Tổng theo rubric 100 cũ (tham chiếu): **85/100**.
+
+### Kết luận theo cổng khả thi
+
+**ĐẠT CỔNG KHẢ THI — đủ điều kiện phát hành:** chất lượng 96,0/100
+≥ 95, mọi điểm sàn đều qua, 5 điều kiện cứng đạt, 0 rủi ro cao chưa
+xử lý. Các bước phát hành còn lại theo đúng trình tự kỷ luật: gửi
+bảng điểm này về Tổng quản TRƯỚC → lật public → đăng bài dev.to →
+landing techdev.fun → dispatch backup → kiểm chứng trực tiếp từng
+đích. (Vòng chấm lại này chỉ đẩy các tệp demo/hồ sơ lên repo private;
+không tự lật public.)
