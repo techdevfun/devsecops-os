@@ -8,22 +8,24 @@ CPS 230, SOC 2), bộ CI security gates tái dùng, và tự động hoá thu th
 chứng kiểm toán. Nó **tích hợp với** GitHub/GitLab/Harness chứ không thay thế
 họ, và không phải thêm một scanner nữa.
 
-> ## Trạng thái: PHA 1 ĐÃ HOÀN THIỆN Ở CỤC BỘ — CHƯA PHÁT HÀNH
+> ## Trạng thái: PHA 1 — ĐÃ KIỂM CHỨNG TRÊN GITHUB ACTIONS THẬT
 >
-> Các mốc M1–M4 đã xong và mốc M5 phần cục bộ (M5-A) đã xong: policy pack
-> chạy được (14 policy + harness 34/34), 10 CI gates **đã chạy thật tại
-> chỗ** trên workload mẫu với ma trận kết quả đầy đủ (bản sạch qua hết,
-> bản gài lỗi bị chặn đúng 4 gate), evidence bundle đóng gói + kiểm chứng
-> một lệnh đã kiểm chứng cả chiều xuôi lẫn chiều phá hoại (sửa 1 byte →
-> FAIL), golden path đã có template và đã dogfood một service thứ hai
-> ngay tại chỗ. **Repo chưa được công bố**: cổng phát hành của dự án là
-> 99/100 theo hội đồng nhà máy cộng với nghiệm thu trên GitHub Actions
-> thật (mốc M5-B) — thời gian workflow trung vị trên Actions và golden
-> path trên CI thật hiện **chưa kiểm chứng**. Hồ sơ phát hành chi tiết:
-> [`release/RELEASE-DOSSIER.md`](release/RELEASE-DOSSIER.md). Không dùng
-> repo này để tuyên bố tuân thủ bất kỳ khung kiểm soát nào: các ánh xạ
-> trong tài liệu là **ánh xạ tham chiếu phục vụ chuẩn bị kiểm toán, không
-> phải chứng nhận tuân thủ**.
+> Các mốc M1–M5 đã xong: policy pack chạy được (14 policy + harness
+> 34/34), 10 CI gates chạy thật trên workload mẫu với ma trận kết quả
+> đầy đủ (bản sạch qua hết, bản gài lỗi bị chặn đúng 4 gate), evidence
+> bundle đóng gói + kiểm chứng một lệnh đã kiểm chứng cả chiều xuôi lẫn
+> chiều phá hoại (sửa 1 byte → FAIL), golden path đã có template và đã
+> dogfood một service thứ hai. **Số đo trên GitHub Actions thật** (repo
+> này, nhánh main): workflow tổng chạy 3 lần — 54, 66, 58 giây, **trung
+> vị 58 giây** (trần nghiệm thu 15 phút); biến thể gài lỗi bị chặn ở
+> đúng các gate 1, 4, 5, 8 trên CI; golden path dựng service từ template
+> và CI xanh **ngay lần chạy đầu**, tổng dựng + CI 5 phút 42 giây (trần
+> 30 phút); evidence bundle của mỗi lần chạy CI được **ký keyless bằng
+> Cosign qua OIDC** và tự xác minh ngay trong job. Hồ sơ phát hành chi
+> tiết: [`release/RELEASE-DOSSIER.md`](release/RELEASE-DOSSIER.md).
+> Không dùng repo này để tuyên bố tuân thủ bất kỳ khung kiểm soát nào:
+> các ánh xạ trong tài liệu là **ánh xạ tham chiếu phục vụ chuẩn bị
+> kiểm toán, không phải chứng nhận tuân thủ**.
 
 ## Demo (từ lần chạy thật)
 
