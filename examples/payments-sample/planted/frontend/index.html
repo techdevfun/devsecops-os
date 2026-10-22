@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>payments-sample — devsecops-os demo workload</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>payments-sample</h1>
+    <p class="note">
+      Minimal demo workload for the devsecops-os security gates.
+      Not a real payment system — data lives in the API's memory only.
+    </p>
+
+    <section>
+      <h2>Record a payment</h2>
+      <form id="payment-form">
+        <label>Amount
+          <input id="amount" type="number" min="1" step="any" value="50000" required>
+        </label>
+        <label>Currency
+          <select id="currency">
+            <option value="VND" selected>VND</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </label>
+        <label>Description
+          <input id="description" type="text" value="Invoice INV-1002">
+        </label>
+        <button type="submit">Submit</button>
+      </form>
+      <p id="form-result" role="status"></p>
+    </section>
+
+    <section>
+      <h2>Payments</h2>
+      <button id="refresh" type="button">Refresh</button>
+      <ul id="payment-list"></ul>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

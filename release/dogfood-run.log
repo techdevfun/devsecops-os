@@ -1,0 +1,269 @@
+=== SMOKE: backend chay that ===
+INFO:     Started server process [28425]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:18099 (Press CTRL+C to quit)
+INFO:     127.0.0.1:43166 - "GET /health HTTP/1.1" 200 OK
+{"status":"ok","service":"checkout-sample"}
+[dogfood] smoke-backend rc=0
+INFO:     Shutting down
+[gate 01] secret — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 01] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-01-secret
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28425]
+[90m11:03AM[0m [32mINF[0m [1mscanned ~32997 bytes (33 KB) in 79.4ms[0m
+[90m11:03AM[0m [32mINF[0m [1mno leaks found[0m
+[gitleaks_input] 0 finding -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-01-secret/secret-findings.input.json
+[record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-01-secret/sarif-report.record.json
+[opa_decide] devsecops.secret_findings (gate 1): PASS (0 vi phạm)
+[dogfood] gate-01 rc=0
+[gate 02] sast — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 02] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-02-sast
+[gate 02] semgrep: 0 finding {} (report-only)
+[record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-02-sast/sarif-report.record.json
+[dogfood] gate-02 rc=0
+[gate 03] sca — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 03] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-03-sca
+[gate 03] lần thử 1: osv-scanner exit=1, 3 package được quét
+[osv_normalize] 3 dependency, 4 vulnerability -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-03-sca/normalized.json
+    - anyio==4.9.0: CVE-2026-64847 (PYSEC-2026-4024) affected=>=0,<4.14.2 fixed=4.14.2
+    - anyio==4.9.0: CVE-2026-63374 (PYSEC-2026-4025) affected=>=0,<4.14.2 fixed=4.14.2
+    - h11==0.9.0: CVE-2025-43859 (PYSEC-2026-348) affected=>=0,<0.16.0 fixed=0.16.0
+    - idna==3.9.0: CVE-2026-45409 (PYSEC-2026-215) affected=>=0,<3.15 fixed=3.15
+[record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-03-sca/sarif-report.record.json
+[dogfood] gate-03 rc=0
+[gate 04] iac — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 04] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-04-iac
+[gate 04] terraform validate exit=0 (PASS)
+[gate 04] trivy config: 8 misconfiguration (report-only)
+[record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-04-iac/sarif-report.record.json
+[tf_parse_input] 2 SG, 1 storage, 1 IAM attachment -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-04-iac/tf-normalized.input.json
+[opa_decide] devsecops.network_exposure (gate 4): PASS (0 vi phạm)
+[opa_decide] devsecops.storage_encryption (gate 4): PASS (0 vi phạm)
+[opa_decide] devsecops.iam_least_privilege (gate 4): PASS (0 vi phạm)
+[record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-04-iac/iac-assessment.record.json
+[dogfood] gate-04 rc=0
+[gate 05] container — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 05] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-05-container
+[gate 05] base image: python:3.13-slim
+[record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-05-container/sarif-report.record.json
+[feeds] tải CISA KEV catalog...
+[feeds] tải FIRST EPSS scores...
+[image_block_check] tổng 170 lỗ hổng {'LOW': 61, 'HIGH': 48, 'MEDIUM': 60, 'UNKNOWN': 1}; thuộc nhóm chặn (CRITICAL+fixed+KEV): 0
+[gate 05] base_image input: [{'image': 'python', 'tag': '3.13-slim', 'digest': None}]
+[opa_decide] devsecops.base_image (gate 5): PASS (0 vi phạm)
+[gate 05] không có CVE thuộc nhóm chặn CRITICAL+fixed+KEV
+[dogfood] gate-05 rc=0
+[gate 06] sbom-attestation — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 06] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-06-sbom-attestation
+[provenance] artefact payments-sample-checkout-sample.tar.gz digest sha256:e553378c0dc308d570afc6f9723a1351e477721e0ab6a74a0d105b34d279ab22
+[provenance] SBOM CycloneDX: 17 components
+[provenance] cosign sign-blob + verify-blob (bundle, offline, không tlog): OK
+[provenance] records + policy input đã ghi
+[opa_decide] devsecops.provenance (gate 6): PASS (0 vi phạm)
+[dogfood] gate-06 rc=0
+[gate 07] license — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 07] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-07-license
+[syft_license_input] 17 component-license -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-07-license/license.input.json
+[opa_decide] devsecops.license_policy (gate 7): PASS (0 vi phạm)
+[dogfood] gate-07 rc=0
+[gate 08] kev-epss — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 08] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-08-kev-epss
+[kev_epss] 174 lỗ hổng đã xếp hạng: 0 block, 174 issue (KEV catalog 2026.10.21, EPSS v2026.06.15)
+    - CVE-2026-64847 anyio==4.9.0: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-63374 anyio==4.9.0: in_kev=False epss=0.00289 -> issue
+    - CVE-2025-43859 h11==0.9.0: in_kev=False epss=0.00584 -> issue
+    - CVE-2026-45409 idna==3.9.0: in_kev=False epss=0.00457 -> issue
+    - CVE-2011-3374 apt==3.0.3: in_kev=False epss=0.01191 -> issue
+    - TEMP-0841856-B18BAF bash==5.2.37-2+b10: in_kev=False epss=None -> issue
+    - CVE-2026-76642 bsdutils==1:2.41.5-0+deb13u1: in_kev=False epss=0.00216 -> issue
+    - CVE-2026-78408 bsdutils==1:2.41.5-0+deb13u1: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-78409 bsdutils==1:2.41.5-0+deb13u1: in_kev=False epss=0.00154 -> issue
+    - CVE-2026-78410 bsdutils==1:2.41.5-0+deb13u1: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-3184 bsdutils==1:2.41.5-0+deb13u1: in_kev=False epss=0.00436 -> issue
+    - CVE-2022-0563 bsdutils==1:2.41.5-0+deb13u1: in_kev=False epss=0.0043 -> issue
+    - CVE-2017-18018 coreutils==9.7-3: in_kev=False epss=0.00345 -> issue
+    - CVE-2025-5278 coreutils==9.7-3: in_kev=False epss=0.00297 -> issue
+    - CVE-2026-56391 coreutils==9.7-3: in_kev=False epss=0.00171 -> issue
+    - CVE-2026-56392 coreutils==9.7-3: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-102473 dash==0.5.12-12: in_kev=False epss=0.0013 -> issue
+    - CVE-2026-102474 dash==0.5.12-12: in_kev=False epss=0.00144 -> issue
+    - CVE-2026-53910 diffutils==1:3.10-4: in_kev=False epss=0.00332 -> issue
+    - CVE-2026-102010 gcc-14-base==14.2.0-19: in_kev=False epss=0.0025 -> issue
+    - CVE-2026-95619 gcc-14-base==14.2.0-19: in_kev=False epss=0.00363 -> issue
+    - CVE-2026-54369 libacl1==2.3.2-2+b1: in_kev=False epss=0.00153 -> issue
+    - CVE-2026-54370 libacl1==2.3.2-2+b1: in_kev=False epss=0.00088 -> issue
+    - CVE-2011-3374 libapt-pkg7.0==3.0.3: in_kev=False epss=0.01191 -> issue
+    - CVE-2026-54371 libattr1==1:2.5.2-3: in_kev=False epss=0.00146 -> issue
+    - CVE-2026-76642 libblkid1==2.41.5-0+deb13u1: in_kev=False epss=0.00216 -> issue
+    - CVE-2026-78408 libblkid1==2.41.5-0+deb13u1: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-78409 libblkid1==2.41.5-0+deb13u1: in_kev=False epss=0.00154 -> issue
+    - CVE-2026-78410 libblkid1==2.41.5-0+deb13u1: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-3184 libblkid1==2.41.5-0+deb13u1: in_kev=False epss=0.00436 -> issue
+    - CVE-2022-0563 libblkid1==2.41.5-0+deb13u1: in_kev=False epss=0.0043 -> issue
+    - CVE-2026-42250 libbz2-1.0==1.0.8-6: in_kev=False epss=0.00182 -> issue
+    - CVE-2026-18374 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00144 -> issue
+    - CVE-2026-19499 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00297 -> issue
+    - CVE-2026-19542 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00226 -> issue
+    - CVE-2026-5435 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00394 -> issue
+    - CVE-2026-6238 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00444 -> issue
+    - CVE-2026-6368 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00107 -> issue
+    - CVE-2026-6791 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.0022 -> issue
+    - CVE-2026-77117 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00358 -> issue
+    - CVE-2026-80489 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00358 -> issue
+    - CVE-2026-8674 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00315 -> issue
+    - CVE-2026-86805 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00097 -> issue
+    - CVE-2026-89092 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.0024 -> issue
+    - CVE-2026-95818 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00129 -> issue
+    - CVE-2010-4756 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.02633 -> issue
+    - CVE-2018-20796 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.05804 -> issue
+    - CVE-2019-1010022 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.03249 -> issue
+    - CVE-2019-1010023 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.03069 -> issue
+    - CVE-2019-1010024 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.0322 -> issue
+    - CVE-2019-1010025 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.02478 -> issue
+    - CVE-2019-9192 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.02447 -> issue
+    - CVE-2026-97399 libc-bin==2.41-12+deb13u4: in_kev=False epss=0.00292 -> issue
+    - CVE-2026-18374 libc6==2.41-12+deb13u4: in_kev=False epss=0.00144 -> issue
+    - CVE-2026-19499 libc6==2.41-12+deb13u4: in_kev=False epss=0.00297 -> issue
+    - CVE-2026-19542 libc6==2.41-12+deb13u4: in_kev=False epss=0.00226 -> issue
+    - CVE-2026-5435 libc6==2.41-12+deb13u4: in_kev=False epss=0.00394 -> issue
+    - CVE-2026-6238 libc6==2.41-12+deb13u4: in_kev=False epss=0.00444 -> issue
+    - CVE-2026-6368 libc6==2.41-12+deb13u4: in_kev=False epss=0.00107 -> issue
+    - CVE-2026-6791 libc6==2.41-12+deb13u4: in_kev=False epss=0.0022 -> issue
+    - CVE-2026-77117 libc6==2.41-12+deb13u4: in_kev=False epss=0.00358 -> issue
+    - CVE-2026-80489 libc6==2.41-12+deb13u4: in_kev=False epss=0.00358 -> issue
+    - CVE-2026-8674 libc6==2.41-12+deb13u4: in_kev=False epss=0.00315 -> issue
+    - CVE-2026-86805 libc6==2.41-12+deb13u4: in_kev=False epss=0.00097 -> issue
+    - CVE-2026-89092 libc6==2.41-12+deb13u4: in_kev=False epss=0.0024 -> issue
+    - CVE-2026-95818 libc6==2.41-12+deb13u4: in_kev=False epss=0.00129 -> issue
+    - CVE-2010-4756 libc6==2.41-12+deb13u4: in_kev=False epss=0.02633 -> issue
+    - CVE-2018-20796 libc6==2.41-12+deb13u4: in_kev=False epss=0.05804 -> issue
+    - CVE-2019-1010022 libc6==2.41-12+deb13u4: in_kev=False epss=0.03249 -> issue
+    - CVE-2019-1010023 libc6==2.41-12+deb13u4: in_kev=False epss=0.03069 -> issue
+    - CVE-2019-1010024 libc6==2.41-12+deb13u4: in_kev=False epss=0.0322 -> issue
+    - CVE-2019-1010025 libc6==2.41-12+deb13u4: in_kev=False epss=0.02478 -> issue
+    - CVE-2019-9192 libc6==2.41-12+deb13u4: in_kev=False epss=0.02447 -> issue
+    - CVE-2026-97399 libc6==2.41-12+deb13u4: in_kev=False epss=0.00292 -> issue
+    - CVE-2026-102010 libgcc-s1==14.2.0-19: in_kev=False epss=0.0025 -> issue
+    - CVE-2026-95619 libgcc-s1==14.2.0-19: in_kev=False epss=0.00363 -> issue
+    - CVE-2026-76642 liblastlog2-2==2.41.5-0+deb13u1: in_kev=False epss=0.00216 -> issue
+    - CVE-2026-78408 liblastlog2-2==2.41.5-0+deb13u1: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-78409 liblastlog2-2==2.41.5-0+deb13u1: in_kev=False epss=0.00154 -> issue
+    - CVE-2026-78410 liblastlog2-2==2.41.5-0+deb13u1: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-3184 liblastlog2-2==2.41.5-0+deb13u1: in_kev=False epss=0.00436 -> issue
+    - CVE-2022-0563 liblastlog2-2==2.41.5-0+deb13u1: in_kev=False epss=0.0043 -> issue
+    - CVE-2026-76642 libmount1==2.41.5-0+deb13u1: in_kev=False epss=0.00216 -> issue
+    - CVE-2026-78408 libmount1==2.41.5-0+deb13u1: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-78409 libmount1==2.41.5-0+deb13u1: in_kev=False epss=0.00154 -> issue
+    - CVE-2026-78410 libmount1==2.41.5-0+deb13u1: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-3184 libmount1==2.41.5-0+deb13u1: in_kev=False epss=0.00436 -> issue
+    - CVE-2022-0563 libmount1==2.41.5-0+deb13u1: in_kev=False epss=0.0043 -> issue
+    - CVE-2025-69720 libncursesw6==6.5+20250216-2: in_kev=False epss=0.00465 -> issue
+    - CVE-2025-6141 libncursesw6==6.5+20250216-2: in_kev=False epss=0.00201 -> issue
+    - CVE-2026-54411 libpam-modules==1.7.0-5: in_kev=False epss=0.005 -> issue
+    - CVE-2026-54411 libpam-modules-bin==1.7.0-5: in_kev=False epss=0.005 -> issue
+    - CVE-2026-54411 libpam-runtime==1.7.0-5: in_kev=False epss=0.005 -> issue
+    - CVE-2026-54411 libpam0g==1.7.0-5: in_kev=False epss=0.005 -> issue
+    - CVE-2026-76642 libsmartcols1==2.41.5-0+deb13u1: in_kev=False epss=0.00216 -> issue
+    - CVE-2026-78408 libsmartcols1==2.41.5-0+deb13u1: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-78409 libsmartcols1==2.41.5-0+deb13u1: in_kev=False epss=0.00154 -> issue
+    - CVE-2026-78410 libsmartcols1==2.41.5-0+deb13u1: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-3184 libsmartcols1==2.41.5-0+deb13u1: in_kev=False epss=0.00436 -> issue
+    - CVE-2022-0563 libsmartcols1==2.41.5-0+deb13u1: in_kev=False epss=0.0043 -> issue
+    - CVE-2026-50812 libsqlite3-0==3.46.1-7+deb13u2: in_kev=False epss=0.0016 -> issue
+    - CVE-2026-50813 libsqlite3-0==3.46.1-7+deb13u2: in_kev=False epss=0.00159 -> issue
+    - CVE-2021-45346 libsqlite3-0==3.46.1-7+deb13u2: in_kev=False epss=0.01628 -> issue
+    - CVE-2025-70873 libsqlite3-0==3.46.1-7+deb13u2: in_kev=False epss=0.00332 -> issue
+    - CVE-2026-102010 libstdc++6==14.2.0-19: in_kev=False epss=0.0025 -> issue
+    - CVE-2026-95619 libstdc++6==14.2.0-19: in_kev=False epss=0.00363 -> issue
+    - CVE-2026-16742 libsystemd0==257.13-1~deb13u1: in_kev=False epss=0.00057 -> issue
+    - CVE-2026-15059 libsystemd0==257.13-1~deb13u1: in_kev=False epss=0.00119 -> issue
+    - CVE-2013-4392 libsystemd0==257.13-1~deb13u1: in_kev=False epss=0.00468 -> issue
+    - CVE-2023-31437 libsystemd0==257.13-1~deb13u1: in_kev=False epss=0.00341 -> issue
+    - CVE-2023-31438 libsystemd0==257.13-1~deb13u1: in_kev=False epss=0.00325 -> issue
+    - CVE-2023-31439 libsystemd0==257.13-1~deb13u1: in_kev=False epss=0.00349 -> issue
+    - CVE-2026-40228 libsystemd0==257.13-1~deb13u1: in_kev=False epss=0.00139 -> issue
+    - CVE-2025-69720 libtinfo6==6.5+20250216-2: in_kev=False epss=0.00465 -> issue
+    - CVE-2025-6141 libtinfo6==6.5+20250216-2: in_kev=False epss=0.00201 -> issue
+    - CVE-2026-16742 libudev1==257.13-1~deb13u1: in_kev=False epss=0.00057 -> issue
+    - CVE-2026-15059 libudev1==257.13-1~deb13u1: in_kev=False epss=0.00119 -> issue
+    - CVE-2013-4392 libudev1==257.13-1~deb13u1: in_kev=False epss=0.00468 -> issue
+    - CVE-2023-31437 libudev1==257.13-1~deb13u1: in_kev=False epss=0.00341 -> issue
+    - CVE-2023-31438 libudev1==257.13-1~deb13u1: in_kev=False epss=0.00325 -> issue
+    - CVE-2023-31439 libudev1==257.13-1~deb13u1: in_kev=False epss=0.00349 -> issue
+    - CVE-2026-40228 libudev1==257.13-1~deb13u1: in_kev=False epss=0.00139 -> issue
+    - CVE-2026-76642 libuuid1==2.41.5-0+deb13u1: in_kev=False epss=0.00216 -> issue
+    - CVE-2026-78408 libuuid1==2.41.5-0+deb13u1: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-78409 libuuid1==2.41.5-0+deb13u1: in_kev=False epss=0.00154 -> issue
+    - CVE-2026-78410 libuuid1==2.41.5-0+deb13u1: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-3184 libuuid1==2.41.5-0+deb13u1: in_kev=False epss=0.00436 -> issue
+    - CVE-2022-0563 libuuid1==2.41.5-0+deb13u1: in_kev=False epss=0.0043 -> issue
+    - CVE-2026-76642 login==1:4.16.0-2+really2.41.5-0+deb13u1: in_kev=False epss=0.00216 -> issue
+    - CVE-2026-78408 login==1:4.16.0-2+really2.41.5-0+deb13u1: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-78409 login==1:4.16.0-2+really2.41.5-0+deb13u1: in_kev=False epss=0.00154 -> issue
+    - CVE-2026-78410 login==1:4.16.0-2+really2.41.5-0+deb13u1: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-3184 login==1:4.16.0-2+really2.41.5-0+deb13u1: in_kev=False epss=0.00436 -> issue
+    - CVE-2022-0563 login==1:4.16.0-2+really2.41.5-0+deb13u1: in_kev=False epss=0.0043 -> issue
+    - CVE-2007-5686 login.defs==1:4.17.4-2: in_kev=False epss=0.00942 -> issue
+    - CVE-2024-56433 login.defs==1:4.17.4-2: in_kev=False epss=0.00426 -> issue
+    - TEMP-0628843-DBAD28 login.defs==1:4.17.4-2: in_kev=False epss=None -> issue
+    - CVE-2026-76642 mount==2.41.5-0+deb13u1: in_kev=False epss=0.00216 -> issue
+    - CVE-2026-78408 mount==2.41.5-0+deb13u1: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-78409 mount==2.41.5-0+deb13u1: in_kev=False epss=0.00154 -> issue
+    - CVE-2026-78410 mount==2.41.5-0+deb13u1: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-3184 mount==2.41.5-0+deb13u1: in_kev=False epss=0.00436 -> issue
+    - CVE-2022-0563 mount==2.41.5-0+deb13u1: in_kev=False epss=0.0043 -> issue
+    - CVE-2025-69720 ncurses-base==6.5+20250216-2: in_kev=False epss=0.00465 -> issue
+    - CVE-2025-6141 ncurses-base==6.5+20250216-2: in_kev=False epss=0.00201 -> issue
+    - CVE-2025-69720 ncurses-bin==6.5+20250216-2: in_kev=False epss=0.00465 -> issue
+    - CVE-2025-6141 ncurses-bin==6.5+20250216-2: in_kev=False epss=0.00201 -> issue
+    - CVE-2007-5686 passwd==1:4.17.4-2: in_kev=False epss=0.00942 -> issue
+    - CVE-2024-56433 passwd==1:4.17.4-2: in_kev=False epss=0.00426 -> issue
+    - TEMP-0628843-DBAD28 passwd==1:4.17.4-2: in_kev=False epss=None -> issue
+    - CVE-2026-9538 perl-base==5.40.1-6+deb13u1: in_kev=False epss=0.00448 -> issue
+    - CVE-2026-15534 perl-base==5.40.1-6+deb13u1: in_kev=False epss=0.00256 -> issue
+    - CVE-2011-4116 perl-base==5.40.1-6+deb13u1: in_kev=False epss=0.00524 -> issue
+    - CVE-2026-82560 perl-base==5.40.1-6+deb13u1: in_kev=False epss=0.0063 -> issue
+    - TEMP-0517018-A83CE6 sysvinit-utils==3.14-4: in_kev=False epss=None -> issue
+    - CVE-2026-18477 tar==1.35+dfsg-3.1: in_kev=False epss=0.0008 -> issue
+    - CVE-2026-18508 tar==1.35+dfsg-3.1: in_kev=False epss=0.00141 -> issue
+    - CVE-2026-5704 tar==1.35+dfsg-3.1: in_kev=False epss=0.00401 -> issue
+    - CVE-2005-2541 tar==1.35+dfsg-3.1: in_kev=False epss=0.03992 -> issue
+    - TEMP-0290435-0B57B5 tar==1.35+dfsg-3.1: in_kev=False epss=None -> issue
+    - CVE-2026-76642 util-linux==2.41.5-0+deb13u1: in_kev=False epss=0.00216 -> issue
+    - CVE-2026-78408 util-linux==2.41.5-0+deb13u1: in_kev=False epss=0.00186 -> issue
+    - CVE-2026-78409 util-linux==2.41.5-0+deb13u1: in_kev=False epss=0.00154 -> issue
+    - CVE-2026-78410 util-linux==2.41.5-0+deb13u1: in_kev=False epss=0.00156 -> issue
+    - CVE-2026-3184 util-linux==2.41.5-0+deb13u1: in_kev=False epss=0.00436 -> issue
+    - CVE-2022-0563 util-linux==2.41.5-0+deb13u1: in_kev=False epss=0.0043 -> issue
+    - CVE-2026-27171 zlib1g==1:1.3.dfsg+really1.3.1-1+b1: in_kev=False epss=0.00209 -> issue
+    - CVE-2026-85091 zlib1g==1:1.3.dfsg+really1.3.1-1+b1: in_kev=False epss=0.00356 -> issue
+    - GHSA-6v7p-g79w-8964 msgpack==1.1.2: in_kev=False epss=None -> issue
+    - CVE-2025-47273 setuptools==70.3.0: in_kev=False epss=0.01592 -> issue
+    - CVE-2026-59890 setuptools==70.3.0: in_kev=False epss=0.00405 -> issue
+    - CVE-2026-97687 urllib3==2.7.0: in_kev=False epss=0.00206 -> issue
+    - CVE-2026-97689 urllib3==2.7.0: in_kev=False epss=0.00335 -> issue
+    - CVE-2026-97688 urllib3==2.7.0: in_kev=False epss=0.00291 -> issue
+[opa_decide] devsecops.dependency_kev (gate 8): PASS (0 vi phạm)
+[dogfood] gate-08 rc=0
+[gate 09] pipeline-hygiene — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 09] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-09-pipeline-hygiene
+[workflow_input] 11 workflow, gates_enabled=['secret', 'sast', 'sca', 'iac', 'container', 'sbom', 'license', 'kev', 'pipeline', 'ai-pr-review'] -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-09-pipeline-hygiene/workflows.input.json
+[opa_decide] devsecops.pipeline_policy (gate 9): PASS (0 vi phạm)
+[record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-09-pipeline-hygiene/pipeline-config-verification.record.json
+[dogfood] gate-09 rc=0
+[gate 10] ai-pr-review — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
+[gate 10] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-10-ai-pr-review
+[gate 10] TẮT (mặc định pha 1) — flagship #1 chưa publish; vị trí cắm ở tầng PR giữ trống theo giao diện check-run/SARIF.
+[dogfood] gate-10 rc=0
+Bundle: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/local-checkout-sample
+  run=local-checkout-sample  trạng thái=complete  records=20 (gồm 1 do collector sinh)  artefact=18  bị loại=0
+  gate chặn: không  gate tắt: [10]  truy vết đầy đủ: 6/14 hàng pha 1
+  Kiểm chứng: python3 evidence/verify_bundle.py /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/local-checkout-sample
+[dogfood] bundle-collect rc=0
+Bundle: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/local-checkout-sample
+  file được kiểm hash: 56 · record được kiểm schema: 20
+KẾT QUẢ: PASS — mọi hash khớp manifest, mọi record khớp schema M2
+[dogfood] bundle-verify rc=0
+[dogfood] DONE total=100s

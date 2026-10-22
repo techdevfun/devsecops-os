@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "devsecops-os evidence: ci-log",
+  "description": "Gói log CI + audit log của repo theo kỳ, có hash toàn vẹn (ISO A.8.15-A.8.16).",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "period",
+    "artifact_uri",
+    "sha256"
+  ],
+  "properties": {
+    "evidence_type": {
+      "const": "ci-log"
+    },
+    "sources": {
+      "description": "[ci-log, repo-audit-log]"
+    }
+  }
+}

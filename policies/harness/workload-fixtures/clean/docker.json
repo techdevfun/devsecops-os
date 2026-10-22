@@ -1,0 +1,34 @@
+{
+  "dockerfiles": [
+    {
+      "images": [
+        {
+          "digest": null,
+          "image": "python",
+          "tag": "3.13-slim"
+        }
+      ],
+      "path": "Dockerfile"
+    }
+  ],
+  "eol_images": [
+    {
+      "eol": "2026-04-01",
+      "image": "python",
+      "note": "CPython 3.10 EOL thang 4/2026",
+      "tag_prefix": "3.10"
+    },
+    {
+      "eol": "2024-08-01",
+      "image": "python",
+      "note": "Debian bullseye het ho tro thuong",
+      "tag_contains": "bullseye"
+    },
+    {
+      "eol": "2027-04-01",
+      "image": "python",
+      "note": "CPython 3.11 EOL thang 4/2027 (du phong)",
+      "tag_prefix": "3.11"
+    }
+  ]
+}

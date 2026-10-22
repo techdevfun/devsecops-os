@@ -1,0 +1,1 @@
+{"storage":[{"address":"aws_s3_bucket.logs","encryption_enabled":false,"public_access_blocked":false,"type":"aws_s3_bucket"}]}

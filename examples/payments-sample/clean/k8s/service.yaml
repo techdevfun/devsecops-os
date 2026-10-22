@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-sample
+  labels:
+    app: payments-sample
+spec:
+  type: ClusterIP
+  selector:
+    app: payments-sample
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

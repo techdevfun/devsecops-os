@@ -1,0 +1,16 @@
+# Fixture VI PHẠM cho policies/kyverno/workload-baseline.yaml:
+# chạy user root (runAsUser: 0), allowPrivilegeEscalation: true,
+# không khai báo resources. Kỳ vọng: rớt cả 3 rule của baseline.
+# (Bản ĐẠT là manifest thật của workload:
+#  examples/payments-sample/clean/k8s/deployment.yaml.)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod
+spec:
+  containers:
+    - name: api
+      image: python:3.13-slim
+      securityContext:
+        runAsUser: 0
+        allowPrivilegeEscalation: true

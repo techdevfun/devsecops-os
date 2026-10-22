@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "devsecops-os evidence: iac-assessment",
+  "description": "Kết quả đánh giá IaC (OPA trên Terraform plan + IaC scan) theo môi trường, kèm quyết định duyệt.",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "environment",
+    "commit_sha",
+    "decision",
+    "policy_decisions"
+  ],
+  "properties": {
+    "evidence_type": {
+      "const": "iac-assessment"
+    },
+    "plan_digest": {
+      "description": "SHA-256 của terraform plan đã đánh giá"
+    },
+    "approver": {
+      "description": "người/hệ thống duyệt (nếu có ngoại lệ)"
+    }
+  }
+}

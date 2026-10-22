@@ -1,0 +1,114 @@
+# Workflow tổng của devsecops-os (pha 1): chạy toàn bộ 10 gates trên
+# một biến thể workload mẫu. Gate 10 (AI PR Review Gate) MẶC ĐỊNH TẮT —
+# toàn bộ workflow phải hoàn chỉnh khi nó tắt (blueprint mục 5.3).
+# Job evidence-bundle ở cuối là evidence collector của M4 (đóng
+# bundle + manifest SHA-256 sau khi mọi gate chạy xong, chỉ thu thập,
+# không đổi quyết định chặn của gate nào).
+name: "All gates (payments-sample)"
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      workload_path:
+        description: "Biến thể workload để chạy toàn bộ gates"
+        required: false
+        type: choice
+        options:
+          - "examples/payments-sample/clean"
+          - "examples/payments-sample/planted"
+        default: "examples/payments-sample/clean"
+      enable_ai_pr_review:
+        description: "Bật gate 10 (chỉ khi flagship #1 đã publish)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  gate-01:
+    uses: ./.github/workflows/gate-01-secret.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+  gate-02:
+    uses: ./.github/workflows/gate-02-sast.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+  gate-03:
+    uses: ./.github/workflows/gate-03-sca.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+  gate-04:
+    uses: ./.github/workflows/gate-04-iac.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+  gate-05:
+    uses: ./.github/workflows/gate-05-container.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+  gate-06:
+    uses: ./.github/workflows/gate-06-sbom-attestation.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+  gate-07:
+    uses: ./.github/workflows/gate-07-license.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+  gate-08:
+    uses: ./.github/workflows/gate-08-kev-epss.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+  gate-09:
+    uses: ./.github/workflows/gate-09-pipeline-hygiene.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+  gate-10:
+    uses: ./.github/workflows/gate-10-ai-pr-review.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
+      enabled: "${{ inputs.enable_ai_pr_review }}"
+  evidence-bundle:
+    # M4 — evidence collector: gom đầu ra của mọi gate, kiểm từng
+    # record khớp schema M2, đóng evidence bundle kèm manifest
+    # SHA-256 và tải lên làm artefact. CHỈ THU THẬP — job này không
+    # đổi quyết định chặn của bất kỳ gate nào: chạy `if: always()`
+    # và `--allow-incomplete` đúng nguyên tắc "gate cuối" của
+    # blueprint mục 5.2 (thiếu bằng chứng -> bundle mang cờ
+    # evidence-incomplete; pha 1 chưa chặn pipeline vì bằng chứng).
+    # Gate 10 giữ MẶC ĐỊNH TẮT như mọi job khác trong workflow này.
+    needs: [gate-01, gate-02, gate-03, gate-04, gate-05, gate-06, gate-07, gate-08, gate-09, gate-10]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: "Tải artefact của mọi gate (không gộp — giữ cấu trúc theo gate)"
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: "gate-*"
+          path: "gate-outputs"
+      - name: "Dựng thư mục lần chạy theo hợp đồng evidence/output/<run>/gate-NN-*"
+        run: |
+          mkdir -p evidence-run
+          for d in gate-outputs/*/; do
+            cp -r "${d}" "evidence-run/$(basename "${d}")"
+          done
+          find evidence-run -type f | sort
+      - name: "Đóng evidence bundle (M4 collector)"
+        run: |
+          python3 evidence/bundle_tool.py collect evidence-run \
+            --run-id "ci-${{ github.sha }}" \
+            --out-dir "evidence-bundle" \
+            --allow-incomplete
+      - name: "Tự kiểm chứng bundle vừa đóng (một lệnh)"
+        run: python3 evidence/verify_bundle.py evidence-bundle
+      - name: "Tải lên evidence bundle"
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: "evidence-bundle"
+          path: "evidence-bundle"
+          if-no-files-found: error
+  # M5: job collect-gate-outputs cũ (gộp artefact bằng merge-multiple,
+  # có thể làm các file trùng tên giữa các gate ghi đè nhau) đã bị GỠ
+  # hẳn — evidence-bundle ở trên là đường gom bằng chứng duy nhất.

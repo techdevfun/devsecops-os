@@ -1,0 +1,1 @@
+{"config":{"required_types":["sarif-report","sbom","policy-decision","ci-log"]},"items":[{"controls":["ISO27001-A.8.25"],"sha256":"h1","type":"sarif-report"},{"controls":["ISO27001-A.5.19"],"type":"sbom"}],"run":{"commit_sha":"","started_at":"2026-10-22T07:00:00Z"}}

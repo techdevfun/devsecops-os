@@ -1,0 +1,55 @@
+{
+  "provenance": {
+    "source": "cấu hình IaC tại examples/payments-sample/clean/infra — biến thể được duyệt làm chuẩn (baseline) cho drift check",
+    "generated_at": "2026-10-22T16:09:29Z",
+    "generated_by": "devsecops-os evidence generators 1.0.0 (M5-A3)",
+    "parser": "conftest parse (HCL2) qua adapter của gate 4 (tf_parse_input)"
+  },
+  "config": {
+    "security_groups": [
+      {
+        "name": "aws_security_group.alb",
+        "public_web": true,
+        "ingress": [
+          {
+            "from_port": 443,
+            "to_port": 443,
+            "cidr_blocks": [
+              "203.0.113.0/24"
+            ],
+            "security_groups": []
+          }
+        ]
+      },
+      {
+        "name": "aws_security_group.app",
+        "public_web": false,
+        "ingress": [
+          {
+            "from_port": 8000,
+            "to_port": 8000,
+            "cidr_blocks": [],
+            "security_groups": [
+              "aws_security_group.alb.id"
+            ]
+          }
+        ]
+      }
+    ],
+    "storage": [
+      {
+        "address": "aws_s3_bucket.artefacts",
+        "type": "aws_s3_bucket",
+        "encryption_enabled": true,
+        "public_access_blocked": true
+      }
+    ],
+    "iam_policies": [],
+    "managed_policy_attachments": [
+      {
+        "role": "aws_iam_role.execution",
+        "policy_arn": "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+      }
+    ]
+  }
+}

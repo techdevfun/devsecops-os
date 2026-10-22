@@ -1,0 +1,1 @@
+{"iam_policies":[{"attached_to":"aws_iam_role.task","name":"dev-convenience","statements":[{"actions":["*"],"effect":"Allow","resources":["*"]}]}],"managed_policy_attachments":[{"policy_arn":"arn:aws:iam::aws:policy/AdministratorAccess","role":"aws_iam_role.task"}]}

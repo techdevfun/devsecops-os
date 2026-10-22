@@ -1,0 +1,1 @@
+{"config":{"epss_threshold":0.5},"dependencies":[{"ecosystem":"pip","name":"starlette","version":"1.0.0"}],"vulnerabilities":[{"affected":">=0.8.3,<1.0.1","epss":0.42,"fixed":"1.0.1","id":"CVE-2026-48710","in_kev":true,"package":"starlette"}]}

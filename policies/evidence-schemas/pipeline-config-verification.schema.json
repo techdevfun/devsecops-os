@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "devsecops-os evidence: pipeline-config-verification",
+  "description": "Kết quả kiểm chứng cấu hình pipeline (permissions, ghim SHA, OIDC, gate bắt buộc) bởi pipeline_policy.",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "workflow_file",
+    "commit_sha",
+    "decision"
+  ],
+  "properties": {
+    "evidence_type": {
+      "const": "pipeline-config-verification"
+    },
+    "checks": {
+      "description": "[quyen token, ghim SHA, OIDC, gate bat buoc]"
+    }
+  }
+}

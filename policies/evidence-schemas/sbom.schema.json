@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "devsecops-os evidence: sbom",
+  "description": "Software Bill of Materials của artefact (Syft sinh).",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "format",
+    "artifact_digest",
+    "sha256",
+    "signed"
+  ],
+  "properties": {
+    "evidence_type": {
+      "const": "sbom"
+    },
+    "format": {
+      "description": "CycloneDX|SPDX"
+    },
+    "artifact_digest": {
+      "description": "digest của artefact được mô tả"
+    },
+    "components_count": {
+      "description": "số component"
+    },
+    "signed": {
+      "description": "đã ký Cosign hay chưa"
+    }
+  }
+}

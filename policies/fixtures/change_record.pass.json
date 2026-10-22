@@ -1,0 +1,1 @@
+{"change":{"approvals":["lead1"],"author":"dev1","evidence_links":["evidence://run/2026-10-22/abc"],"exceptions":[],"gate_results":{"iac":"pass","sast":"pass","sca":"pass","secret":"pass"},"id":"PR-101","target_branch":"main"},"config":{"protected_branches":["main","release"],"required_gates":["secret","sast","sca","iac"]},"today":"2026-10-22"}

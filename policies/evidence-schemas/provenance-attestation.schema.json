@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "devsecops-os evidence: provenance-attestation",
+  "description": "SLSA provenance attestation + kết quả xác minh chữ ký Cosign.",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "artifact_digest",
+    "builder",
+    "slsa_level",
+    "signature_verified"
+  ],
+  "properties": {
+    "evidence_type": {
+      "const": "provenance-attestation"
+    },
+    "builder": {
+      "description": "id của builder (slsa-github-generator)"
+    },
+    "subject": {
+      "description": "tên artefact"
+    },
+    "predicate_type": {
+      "description": "https://slsa.dev/provenance/v1"
+    }
+  }
+}

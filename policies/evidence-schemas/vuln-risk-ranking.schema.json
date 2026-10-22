@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "devsecops-os evidence: vuln-risk-ranking",
+  "description": "Danh sách lỗ hổng đã xếp hạng bằng CISA KEV + EPSS và quyết định chặn/issue của gate 8.",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "period",
+    "entries"
+  ],
+  "properties": {
+    "evidence_type": {
+      "const": "vuln-risk-ranking"
+    },
+    "entries": {
+      "description": "[{cve, package, version, in_kev, epss, decision: block|issue, due}]"
+    },
+    "feed_versions": {
+      "description": "phiên bản feed KEV/EPSS đã dùng"
+    }
+  }
+}

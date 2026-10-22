@@ -1,0 +1,55 @@
+# MẪU TĨNH (M1) — chưa kiểm chứng trên cluster thật.
+# ClusterPolicy Kyverno: chỉ nhận image đã ký keyless bằng danh tính OIDC của
+# workflow thuộc tổ chức VÀ có SLSA provenance attestation. Image không đạt
+# bị từ chối ở admission; quyết định từ chối cũng là bằng chứng (xem
+# docs/architecture.md mục 4).
+# Trước khi dùng PHẢI thay: <OWNER>/<REPO>, registry và mẫu tên image.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: devsecops-os-verify-image-provenance
+  annotations:
+    policies.kyverno.io/title: "devsecops-os: verify signed images with provenance"
+    policies.kyverno.io/category: "Supply Chain Security"
+    policies.kyverno.io/description: >-
+      Sample policy for the devsecops-os reference architecture. Requires
+      cosign keyless signatures issued to the organisation's GitHub Actions
+      workflow identity and a SLSA provenance attestation.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  failurePolicy: Fail
+  rules:
+    - name: verify-signature-and-provenance
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      verifyImages:
+        - imageReferences:
+            # Thay bằng registry + mẫu image của tổ chức
+            - "registry.example.internal/payments/*"
+          attestors:
+            - entries:
+                - keyless:
+                    subject: "https://github.com/<OWNER>/<REPO>/.github/workflows/*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev
+          attestations:
+            - predicateType: https://slsa.dev/provenance/v1
+              attestors:
+                - entries:
+                    - keyless:
+                        subject: "https://github.com/<OWNER>/<REPO>/.github/workflows/*"
+                        issuer: "https://token.actions.githubusercontent.com"
+                        rekor:
+                          url: https://rekor.sigstore.dev
+              conditions:
+                - all:
+                    - key: "{{ builder.id }}"
+                      operator: AnyIn
+                      value:
+                        - "https://github.com/<OWNER>/<REPO>/.github/workflows/*"

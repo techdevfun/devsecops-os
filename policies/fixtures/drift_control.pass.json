@@ -1,0 +1,1 @@
+{"config":{"critical_categories":["network","iam","storage"],"sla_days":7},"drift_items":[{"acknowledged":true,"category":"storage","detected_on":"2026-10-21","resource":"aws_s3_bucket.artefacts","ticket":"SEC-77"}],"report_date":"2026-10-22"}

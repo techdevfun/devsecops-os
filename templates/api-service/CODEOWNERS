@@ -1,0 +1,8 @@
+# Quyền sở hữu code của service — thay bằng team/người thật khi onboard.
+# Mọi thay đổi vào các đường dẫn nhạy cảm (hạ tầng, CI, cấu hình gates)
+# cần review của chủ sở hữu tương ứng (branch protection áp cùng quy tắc).
+*                  @your-org/service-team
+/infra/            @your-org/platform-team
+/.github/          @your-org/platform-team
+/devsecops-os.yml  @your-org/security-team
+/Dockerfile        @your-org/platform-team

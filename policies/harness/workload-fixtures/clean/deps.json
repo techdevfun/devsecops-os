@@ -1,0 +1,28 @@
+{
+  "config": {
+    "epss_threshold": 0.5
+  },
+  "dependencies": [
+    {
+      "ecosystem": "pip",
+      "name": "starlette",
+      "version": "1.9.0"
+    },
+    {
+      "ecosystem": "pip",
+      "name": "uvicorn",
+      "version": "0.54.0"
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "_source": "PLANTED.md (CISA KEV catalog 2026.10.21 + GHSA-86qp-5c8j-p5mr, \u0111\u1ed1i chi\u1ebfu 2026-10-22). \u1ede production, d\u1eef li\u1ec7u n\u00e0y do gate 3/8 n\u1ea1p t\u1eeb OSV + feed CISA KEV/EPSS t\u1ea1i th\u1eddi \u0111i\u1ec3m ch\u1ea1y.",
+      "affected": ">=0.8.3,<1.0.1",
+      "epss": 0.42,
+      "fixed": "1.0.1",
+      "id": "CVE-2026-48710",
+      "in_kev": true,
+      "package": "starlette"
+    }
+  ]
+}

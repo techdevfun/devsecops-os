@@ -1,0 +1,55 @@
+# MẪU TĨNH (M1) — file cấu hình của hệ khi các mốc M2/M3 cài đặt.
+# Một file cấu hình duy nhất trong repo của tổ chức sử dụng: chọn policy
+# pack, chế độ từng gate, nơi lưu bằng chứng. Giá trị mặc định theo nguyên
+# tắc của blueprint: report-only khi mới lắp, chỉ chặn sau khi đã hiệu
+# chuẩn trên lịch sử của chính repo đó (backtest -> report-only -> enforce).
+
+version: 1
+
+organization:
+  name: example-bank            # tên tổ chức (chỉ để ghi vào báo cáo bằng chứng)
+  config_repo: null             # repo cấu hình tập trung (pha 3), để trống ở pha 1
+
+# Policy packs sẽ cài ở M2. Ánh xạ là THAM CHIẾU, không phải chứng nhận tuân thủ.
+policy_packs:
+  - iso-27001-2022
+  - nist-csf-ssdf
+  - pci-dss-4
+  # - apra-cps-234
+  # - apra-cps-230
+  # - soc-2
+
+gates:
+  secret-scanning:
+    mode: block                 # gate duy nhất mặc định chặn ngay (nhiễu thấp)
+  sast:
+    mode: report-only
+  sca:
+    mode: report-only
+  iac:
+    mode: report-only
+  container:
+    mode: report-only
+  sbom-attestation:
+    mode: report-only           # thiếu SBOM/attestation: cảnh báo ở pha 1
+  license:
+    mode: report-only
+  kev-epss:
+    mode: report-only
+    kev_block: true             # CVE thuộc CISA KEV: ứng viên chặn đầu tiên khi hiệu chuẩn xong
+    epss_threshold: 0.5
+  pipeline-hygiene:
+    mode: block                 # action bên thứ ba chưa ghim full SHA -> chặn
+  ai-pr-review:                 # flagship #1 — MẶC ĐỊNH TẮT ở pha 1
+    enabled: false              # chỉ bật khi flagship #1 qua cổng publish riêng của nó
+    mode: report-only
+
+evidence:
+  store: "./.devsecops-os/evidence"   # trong hạ tầng của tổ chức; có thể trỏ S3/object storage
+  retention_days: 400
+  bundle_manifest: sha256
+
+notifications:
+  # Dùng cơ chế sẵn có của GitHub (check run, PR comment). Webhook là tuỳ
+  # chọn của tổ chức, credential do tổ chức tự quản lý qua secrets của họ.
+  webhook_url_secret: null      # tên secret chứa webhook Slack/Teams/Telegram, để trống = tắt

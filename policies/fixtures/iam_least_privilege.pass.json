@@ -1,0 +1,1 @@
+{"iam_policies":[{"attached_to":"aws_iam_role.task","name":"task-read-artefacts","statements":[{"actions":["s3:GetObject"],"effect":"Allow","resources":["arn:aws:s3:::payments-artefacts/*"]}]}],"managed_policy_attachments":[{"policy_arn":"arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy","role":"aws_iam_role.execution"}]}

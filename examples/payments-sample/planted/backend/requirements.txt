@@ -1,0 +1,10 @@
+# payments-sample API dependencies (PLANTED variant)
+# PLANTED FLAW #2: starlette is pinned to 1.0.0 — the last release still
+# affected by CVE-2026-48710 "BadHost" (GHSA-86qp-5c8j-p5mr), a Host-header
+# request-smuggling / path-based authorization bypass listed in the CISA
+# Known Exploited Vulnerabilities catalog. Affected: >= 0.8.3, < 1.0.1.
+# Fixed in 1.0.1. See ../PLANTED.md for sources.
+# Expected to be caught by the SCA gate (blueprint gate 3) and escalated
+# by the CISA KEV / EPSS prioritisation gate (blueprint gate 8).
+starlette==1.0.0
+uvicorn==0.54.0

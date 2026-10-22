@@ -1,0 +1,58 @@
+# devsecops-os — bản ghi terminal của phiên demo THẬT
+#
+# Nguồn: phiên chạy `bash release/demo/replay.sh` được ghi bằng
+# `script` ngày 2026-10-22 (11:06:21–11:07:52 UTC, 91 giây) trên máy
+# kiểm chứng cục bộ. Mọi dòng kết quả dưới đây do công cụ thật sinh ra
+# (gitleaks/OPA/terraform/cosign + evidence tooling của dự án) — không
+# gõ tay, không dàn dựng. Bản GIF demo-terminal.gif diễn lại đúng các
+# dòng này, chỉ nén thời gian chờ cho vừa ~30 giây.
+# Tái hiện bất cứ lúc nào: bash release/demo/replay.sh
+
+== devsecops-os — bản SẠCH (clean): kỳ vọng qua mọi gate ==
+[gate 01] secret — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/clean
+[gitleaks_input] 0 finding -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-clean/gate-01-secret/secret-findings.input.json
+[opa_decide] devsecops.secret_findings (gate 1): PASS (0 vi phạm)
+-> mã thoát của gate: 0
+[gate 04] iac — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/clean
+[gate 04] terraform validate exit=0 (PASS)
+[gate 04] trivy config: 8 misconfiguration (report-only)
+[opa_decide] devsecops.network_exposure (gate 4): PASS (0 vi phạm)
+[opa_decide] devsecops.storage_encryption (gate 4): PASS (0 vi phạm)
+[opa_decide] devsecops.iam_least_privilege (gate 4): PASS (0 vi phạm)
+-> mã thoát của gate: 0
+[gate 08] kev-epss — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/clean
+[opa_decide] devsecops.dependency_kev (gate 8): PASS (0 vi phạm)
+-> mã thoát của gate: 0
+== devsecops-os — bản GÀI LỖI (planted): 4 lỗi có chủ đích, kỳ vọng chặn đúng gate ==
+[gate 01] secret — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/planted
+[gitleaks_input] 1 finding -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-planted/gate-01-secret/secret-findings.input.json
+[opa_decide] devsecops.secret_findings (gate 1): DENY (1 vi phạm)
+-> mã thoát của gate: 1
+[gate 04] iac — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/planted
+[gate 04] terraform validate exit=0 (PASS)
+[gate 04] trivy config: 9 misconfiguration (report-only)
+[opa_decide] devsecops.network_exposure (gate 4): DENY (2 vi phạm)
+[opa_decide] devsecops.storage_encryption (gate 4): PASS (0 vi phạm)
+[opa_decide] devsecops.iam_least_privilege (gate 4): PASS (0 vi phạm)
+-> mã thoát của gate: 1
+[gate 08] kev-epss — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/planted
+    - CVE-2026-48710 starlette==1.0.0: in_kev=True epss=0.07056 -> block
+[opa_decide] devsecops.dependency_kev (gate 8): DENY (1 vi phạm)
+    - dependency starlette==1.0.0 dinh CVE-2026-48710 (CISA KEV, dang bi khai thac) — nang cap toi >= 1.0.1 (SSDF RV.1/RV.2, PCI DSS Req 11 tham chieu)
+-> mã thoát của gate: 1
+== Evidence bundle — đóng gói + kiểm chứng một lệnh ==
+  run=demo-clean  trạng thái=complete  records=20 (gồm 1 do collector sinh)  artefact=18  bị loại=0
+  gate chặn: không  gate tắt: [10]  truy vết đầy đủ: 6/14 hàng pha 1
+  Kiểm chứng: python3 evidence/verify_bundle.py /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/demo-clean
+Bundle: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/demo-clean
+  file được kiểm hash: 56 · record được kiểm schema: 20
+KẾT QUẢ: PASS — mọi hash khớp manifest, mọi record khớp schema M2
+== Thử phá hoại: sửa 1 byte trong bundle rồi kiểm chứng lại ==
+đã sửa 1 byte trong control-evidence-index.record.json
+Bundle: /tmp/demo-tamper
+  file được kiểm hash: 56 · record được kiểm schema: 20
+KẾT QUẢ: FAIL
+  - hash không khớp: records/collector/control-evidence-index.record.json (manifest ghi d752c3ce0cdd1d9a…, thực tế d6a4a346393d4094… — file đã bị sửa đổi)
+  - records/collector/control-evidence-index.record.json: không đọc được JSON: 'utf-8' codec can't decode byte 0x8b in position 3075: invalid start byte
+-> kiểm chứng FAIL đúng như thiết kế (mã thoát 1)
+== HẾT DEMO — mọi kết quả trên đều từ công cụ thật trong phiên chạy này ==

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets / local env — không bao giờ commit
+.env
+*.pem
+*.key
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+# tfvars chứa giá trị thật của từng môi trường (bản .example thì được commit)
+*.tfvars
+!*.tfvars.example
+
+# Node (frontend tĩnh hiện không có build, giữ sẵn)
+node_modules/
+
+# Evidence bundles sinh ra khi chạy gates (M4) — bằng chứng thuộc về
+# hạ tầng của tổ chức sử dụng, không thuộc repo này
+evidence/bundles/
+evidence/store/
+# Đầu ra từng lần chạy gates (M3) + log thô kiểm chứng — artefact vận
+# hành, không phải mã nguồn (bảng tổng hợp nằm ở gates/verification/results.*)
+evidence/output/
+gates/verification/logs/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "devsecops-os evidence: config-baseline-report",
+  "description": "Báo cáo cấu hình định kỳ theo môi trường (IAM/SG/repo config) từ các policy nhóm cấu hình.",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "environment",
+    "generated_at",
+    "findings"
+  ],
+  "properties": {
+    "evidence_type": {
+      "const": "config-baseline-report"
+    }
+  }
+}

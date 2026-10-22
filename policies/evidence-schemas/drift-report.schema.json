@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "devsecops-os evidence: drift-report",
+  "description": "Báo cáo drift IaC theo lịch + trạng thái xử lý từng mục (đầu vào của drift_control policy).",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "report_date",
+    "drift_items"
+  ],
+  "properties": {
+    "evidence_type": {
+      "const": "drift-report"
+    },
+    "drift_items": {
+      "description": "[{resource, category, detected_on, acknowledged, ticket}]"
+    }
+  }
+}

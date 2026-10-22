@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Báo cáo lỗ hổng bảo mật
+    url: https://github.com/techdevfun/devsecops-os/security/advisories/new
+    about: Vui lòng KHÔNG mở issue công khai cho lỗ hổng bảo mật — dùng kênh riêng này (xem SECURITY.md).

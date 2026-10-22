@@ -1,0 +1,67 @@
+# payments-sample API — minimal Kubernetes deployment (sample).
+# Replace the placeholder image with your registry image, pinned by digest
+# in a real deployment (the SBOM/attestation gate verifies it — see
+# docs/examples/kyverno-verify-images.yaml).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-sample
+  labels:
+    app: payments-sample
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payments-sample
+  template:
+    metadata:
+      labels:
+        app: payments-sample
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: payments-sample:latest # PLACEHOLDER — pin registry image by digest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: ENVIRONMENT
+              value: demo
+            # Injected from a Secret — never written into manifests or source.
+            - name: PAYMENT_PROVIDER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: payments-sample-secrets
+                  key: payment-provider-api-key
+                  optional: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL

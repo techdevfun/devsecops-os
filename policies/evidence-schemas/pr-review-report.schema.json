@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "devsecops-os evidence: pr-review-report",
+  "description": "Báo cáo của AI PR Review Gate (flagship #1) theo PR — chỉ sinh khi gate này được bật (mặc định TẮT ở pha 1).",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "pr",
+    "commit_sha",
+    "findings_by_checker"
+  ],
+  "properties": {
+    "evidence_type": {
+      "const": "pr-review-report"
+    },
+    "report_format": {
+      "description": "Markdown + JSON của prgate"
+    }
+  }
+}

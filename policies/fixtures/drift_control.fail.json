@@ -1,0 +1,1 @@
+{"config":{"critical_categories":["network","iam","storage"],"sla_days":7},"drift_items":[{"acknowledged":false,"category":"network","detected_on":"2026-09-30","resource":"aws_security_group.app","ticket":null}],"report_date":"2026-10-22"}

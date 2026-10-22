@@ -1,0 +1,62 @@
+Script started on 2026-10-22 11:06:21+00:00 [COMMAND="bash replay.sh" <not executed on terminal>]
+
+[1;36m== devsecops-os — bản SẠCH (clean): kỳ vọng qua mọi gate ==[0m
+[gate 01] secret — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/clean
+[gate 01] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-clean/gate-01-secret
+[gitleaks_input] 0 finding -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-clean/gate-01-secret/secret-findings.input.json
+[opa_decide] devsecops.secret_findings (gate 1): PASS (0 vi phạm)
+-> mã thoát của gate: 0
+[gate 04] iac — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/clean
+[gate 04] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-clean/gate-04-iac
+[gate 04] terraform validate exit=0 (PASS)
+[gate 04] trivy config: 8 misconfiguration (report-only)
+[opa_decide] devsecops.network_exposure (gate 4): PASS (0 vi phạm)
+[opa_decide] devsecops.storage_encryption (gate 4): PASS (0 vi phạm)
+[opa_decide] devsecops.iam_least_privilege (gate 4): PASS (0 vi phạm)
+-> mã thoát của gate: 0
+[gate 08] kev-epss — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/clean
+[gate 08] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-clean/gate-08-kev-epss
+[opa_decide] devsecops.dependency_kev (gate 8): PASS (0 vi phạm)
+-> mã thoát của gate: 0
+
+[1;36m== devsecops-os — bản GÀI LỖI (planted): 4 lỗi có chủ đích, kỳ vọng chặn đúng gate ==[0m
+[gate 01] secret — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/planted
+[gate 01] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-planted/gate-01-secret
+[gitleaks_input] 1 finding -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-planted/gate-01-secret/secret-findings.input.json
+[opa_decide] devsecops.secret_findings (gate 1): DENY (1 vi phạm)
+-> mã thoát của gate: 1
+[gate 04] iac — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/planted
+[gate 04] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-planted/gate-04-iac
+[gate 04] terraform validate exit=0 (PASS)
+[gate 04] trivy config: 9 misconfiguration (report-only)
+[opa_decide] devsecops.network_exposure (gate 4): DENY (2 vi phạm)
+[opa_decide] devsecops.storage_encryption (gate 4): PASS (0 vi phạm)
+[opa_decide] devsecops.iam_least_privilege (gate 4): PASS (0 vi phạm)
+-> mã thoát của gate: 1
+[gate 08] kev-epss — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/payments-sample/planted
+[gate 08] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-planted/gate-08-kev-epss
+    - CVE-2026-48710 starlette==1.0.0: in_kev=True epss=0.07056 -> block
+[opa_decide] devsecops.dependency_kev (gate 8): DENY (1 vi phạm)
+    - dependency starlette==1.0.0 dinh CVE-2026-48710 (CISA KEV, dang bi khai thac) — nang cap toi >= 1.0.1 (SSDF RV.1/RV.2, PCI DSS Req 11 tham chieu)
+-> mã thoát của gate: 1
+
+[1;36m== Evidence bundle — đóng gói + kiểm chứng một lệnh ==[0m
+  run=demo-clean  trạng thái=complete  records=20 (gồm 1 do collector sinh)  artefact=18  bị loại=0
+  gate chặn: không  gate tắt: [10]  truy vết đầy đủ: 6/14 hàng pha 1
+  Kiểm chứng: python3 evidence/verify_bundle.py /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/demo-clean
+Bundle: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/demo-clean
+  file được kiểm hash: 56 · record được kiểm schema: 20
+KẾT QUẢ: PASS — mọi hash khớp manifest, mọi record khớp schema M2
+
+[1;36m== Thử phá hoại: sửa 1 byte trong bundle rồi kiểm chứng lại ==[0m
+đã sửa 1 byte trong control-evidence-index.record.json
+Bundle: /tmp/demo-tamper
+  file được kiểm hash: 56 · record được kiểm schema: 20
+KẾT QUẢ: FAIL
+  - hash không khớp: records/collector/control-evidence-index.record.json (manifest ghi d752c3ce0cdd1d9a…, thực tế d6a4a346393d4094… — file đã bị sửa đổi)
+  - records/collector/control-evidence-index.record.json: không đọc được JSON: 'utf-8' codec can't decode byte 0x8b in position 3075: invalid start byte
+-> kiểm chứng FAIL đúng như thiết kế (mã thoát 1)
+
+[1;36m== HẾT DEMO — mọi kết quả trên đều từ công cụ thật trong phiên chạy này ==[0m
+
+Script done on 2026-10-22 11:07:52+00:00 [COMMAND_EXIT_CODE="0"]

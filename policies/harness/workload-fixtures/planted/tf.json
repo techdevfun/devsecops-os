@@ -1,0 +1,54 @@
+{
+  "security_groups": [
+    {
+      "ingress": [
+        {
+          "cidr_blocks": [],
+          "from_port": 443,
+          "security_groups": [],
+          "to_port": 443
+        }
+      ],
+      "name": "aws_security_group.alb",
+      "public_web": false
+    },
+    {
+      "ingress": [
+        {
+          "cidr_blocks": [],
+          "from_port": 8000,
+          "security_groups": [
+            "aws_security_group.alb.id"
+          ],
+          "to_port": 8000
+        },
+        {
+          "cidr_blocks": [
+            "0.0.0.0/0"
+          ],
+          "from_port": 8000,
+          "security_groups": [],
+          "to_port": 8000
+        },
+        {
+          "cidr_blocks": [
+            "0.0.0.0/0"
+          ],
+          "from_port": 22,
+          "security_groups": [],
+          "to_port": 22
+        }
+      ],
+      "name": "aws_security_group.app",
+      "public_web": false
+    }
+  ],
+  "storage": [
+    {
+      "address": "aws_s3_bucket.artefacts",
+      "encryption_enabled": true,
+      "public_access_blocked": true,
+      "type": "aws_s3_bucket"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 2rem auto;
+  max-width: 42rem;
+  padding: 0 1rem;
+  color: #1a1a1a;
+}
+
+.note {
+  background: #f2f4f7;
+  border-left: 4px solid #667085;
+  padding: 0.5rem 0.75rem;
+}
+
+form {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 22rem;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+button {
+  width: fit-content;
+  padding: 0.4rem 1rem;
+}
+
+#payment-list li {
+  margin: 0.25rem 0;
+}

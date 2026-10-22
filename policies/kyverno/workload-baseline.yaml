@@ -1,0 +1,84 @@
+# workload-baseline — ClusterPolicy Kyverno: chuẩn an toàn tối thiểu cho
+# workload trên Kubernetes (cloud + on-prem):
+#   1. Pod và container phải chạy non-root (runAsNonRoot=true, cấm user 0).
+#   2. Container phải có resource requests/limits (CPU + memory).
+#   3. Cấm allowPrivilegeEscalation=true; bắt buộc drop capability ALL.
+# Ánh xạ tham chiếu: ISO 27001 A.8.9 (quản lý cấu hình), SOC 2 CC6.6
+# (ranh giới hệ thống), PCI DSS Req 2 (không dùng cấu hình mặc định).
+# Manifest mẫu của payments-sample (bản clean) ĐẠT cả ba rule này — xem
+# harness/kyverno-check để kiểm chứng cục bộ.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: devsecops-os-workload-baseline
+  annotations:
+    policies.kyverno.io/title: "devsecops-os: workload baseline"
+    policies.kyverno.io/category: "Pod Security"
+    policies.kyverno.io/description: >-
+      Minimum runtime baseline for workloads: non-root, resource limits,
+      no privilege escalation, drop ALL capabilities.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-run-as-nonroot
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Pod phai chay non-root: dat securityContext.runAsNonRoot=true o pod va/hoac container, cam runAsUser=0."
+        # Mẫu pattern theo policy "require-run-as-nonroot" mẫu của Kyverno:
+        # anchor =(...) = "nếu có khai báo thì phải đúng giá trị này".
+        anyPattern:
+          - spec:
+              securityContext:
+                runAsNonRoot: true
+              containers:
+                - (name): "*"
+                  =(securityContext):
+                    =(runAsNonRoot): true
+                    =(runAsUser): ">0"
+          - spec:
+              containers:
+                - (name): "*"
+                  securityContext:
+                    runAsNonRoot: true
+                    =(runAsUser): ">0"
+    - name: require-resource-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Moi container phai co resources.requests va limits (cpu + memory)."
+        pattern:
+          spec:
+            containers:
+              - (name): "*"
+                resources:
+                  requests:
+                    memory: "?*"
+                    cpu: "?*"
+                  limits:
+                    memory: "?*"
+                    cpu: "?*"
+    - name: restrict-privilege-and-capabilities
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Container khong duoc allowPrivilegeEscalation=true va phai drop capability ALL."
+        pattern:
+          spec:
+            containers:
+              - (name): "*"
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                      - ALL

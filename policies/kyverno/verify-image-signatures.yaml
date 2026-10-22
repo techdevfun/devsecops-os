@@ -1,0 +1,51 @@
+# verify-image-signatures — ClusterPolicy Kyverno (verifyImages): chỉ
+# nhận image đã ký keyless bằng danh tính OIDC của workflow thuộc tổ
+# chức VÀ có SLSA provenance attestation khớp. Đây là điểm thực thi ở
+# tầng đích của policy provenance (policies/rego/provenance.rego sinh
+# quyết định phía CI; Kyverno chặn ở admission).
+#
+# Bản pack này chính thức hoá mẫu M1 ở docs/examples/kyverno-verify-images.yaml.
+# Trước khi dùng PHẢI thay: <OWNER>/<REPO>, registry và mẫu tên image.
+# LƯU Ý KIỂM CHỨNG: rule verifyImages cần cluster + Rekor/Cosign để chạy
+# thật; ở M2 chỉ kiểm chứng parse + cấu trúc (xem báo cáo M2).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: devsecops-os-verify-image-signatures
+  annotations:
+    policies.kyverno.io/title: "devsecops-os: verify signed images with provenance"
+    policies.kyverno.io/category: "Supply Chain Security"
+    policies.kyverno.io/description: >-
+      Requires cosign keyless signatures issued to the organisation's
+      GitHub Actions workflow identity and a SLSA provenance attestation.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  webhookTimeoutSeconds: 30
+  failurePolicy: Fail
+  rules:
+    - name: verify-signature-and-provenance
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      verifyImages:
+        - imageReferences:
+            - "registry.example.internal/payments/*"
+          attestors:
+            - entries:
+                - keyless:
+                    subject: "https://github.com/<OWNER>/<REPO>/.github/workflows/*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev
+          attestations:
+            - predicateType: https://slsa.dev/provenance/v1
+              attestors:
+                - entries:
+                    - keyless:
+                        subject: "https://github.com/<OWNER>/<REPO>/.github/workflows/*"
+                        issuer: "https://token.actions.githubusercontent.com"
+                        rekor:
+                          url: https://rekor.sigstore.dev
