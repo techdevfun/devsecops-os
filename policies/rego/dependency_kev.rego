@@ -1,6 +1,7 @@
-# dependency_kev — dependency dính CVE thuộc CISA KEV (đang bị khai thác
-# thật) hoặc EPSS >= ngưỡng thì CHẶN; CVE còn lại chỉ cảnh báo (chống
-# alert fatigue — quyết định chặn thuộc gate 8, dữ liệu quét thuộc gate 3).
+# dependency_kev — a dependency hit by a CVE that is in CISA KEV
+# (actively exploited) or has EPSS >= the threshold is BLOCKED; other
+# CVEs only warn (to avoid alert fatigue — the block decision belongs
+# to gate 8, the scan data to gate 3).
 #
 # Input:
 #   { "dependencies": [ {"name": "starlette", "version": "1.0.0",
@@ -23,7 +24,7 @@ deny contains msg if {
 	v.package == d.name
 	version_in_range(d.version, v.affected)
 	v.in_kev == true
-	msg := sprintf("dependency %s==%s dinh %s (CISA KEV, dang bi khai thac) — nang cap toi >= %s (SSDF RV.1/RV.2, PCI DSS Req 11 tham chieu)", [d.name, d.version, v.id, v.fixed])
+	msg := sprintf("dependency %s==%s is hit by %s (CISA KEV, actively exploited) — upgrade to >= %s (SSDF RV.1/RV.2, PCI DSS Req 11 reference)", [d.name, d.version, v.id, v.fixed])
 }
 
 deny contains msg if {
@@ -32,10 +33,10 @@ deny contains msg if {
 	v.package == d.name
 	version_in_range(d.version, v.affected)
 	v.epss >= epss_threshold
-	msg := sprintf("dependency %s==%s dinh %s voi EPSS %v >= nguong %v — chan theo gate 8", [d.name, d.version, v.id, v.epss, epss_threshold])
+	msg := sprintf("dependency %s==%s is hit by %s with EPSS %v >= threshold %v — blocked by gate 8", [d.name, d.version, v.id, v.epss, epss_threshold])
 }
 
-# --- so sánh phiên bản dạng semver rút gọn (số, tách theo ".") ---
+# --- simplified semver comparison (numbers, split on ".") ---
 
 ver_parts(v) := [n | some p in split(v, "."); n := to_number(p)]
 
