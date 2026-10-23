@@ -1,23 +1,25 @@
 ---
-name: Đề xuất tính năng
-about: Đề xuất policy, cổng, loại bằng chứng hoặc cải tiến tài liệu mới
+name: Feature request
+about: Propose a new policy, gate, evidence type or documentation improvement
 title: "[feature] "
 labels: enhancement
 ---
 
-## Vấn đề cần giải quyết
+## Problem to solve
 
-<!-- Ai đang "đau" vì thiếu tính năng này? Tình huống thật, không
-     phải giải pháp bạn đã nghĩ sẵn. -->
+<!-- Who is "hurting" because this feature is missing? A real
+     situation, not the solution you have already thought up. -->
 
-## Đề xuất
+## Proposal
 
-## Đối thủ/cách làm hiện tại xử lý việc này ra sao?
+## How do competitors/current approaches handle this?
 
-<!-- Dự án có luật đứng: mọi tính năng mới phải trả lời được điểm
-     yếu của cách làm hiện tại mà đề xuất này khắc phục. -->
+<!-- The project has a standing rule: every new feature must be able
+     to answer which weakness of the current approach this proposal
+     fixes. -->
 
-## Tiêu chí nghiệm thu đo được
+## Measurable acceptance criteria
 
-<!-- Làm sao biết tính năng xong? (ví dụ: fixture X phải bị chặn ở
-     cổng Y; bundle phải chứa record Z khớp schema.) -->
+<!-- How will we know the feature is done? (for example: fixture X
+     must be blocked at gate Y; the bundle must contain record Z
+     matching the schema.) -->
