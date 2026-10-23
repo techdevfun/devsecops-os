@@ -1,47 +1,50 @@
-# Golden Path — mẫu paved road (M5)
+# Golden Path — paved road templates (M5)
 
-Golden path là "đường đã lát": một service mới bắt đầu từ template này
-thì **mặc định đã an toàn** — 10 CI gates, policy mặc định, bằng chứng tự
-sinh — mà không cần đội ngũ tự lắp ráp. Thiết kế gốc: mục 6 của
-[`../docs/blueprint.md`](../docs/blueprint.md), chi tiết ở
+A golden path is a "paved road": a new service that starts from this
+template is **secure by default** — 10 CI gates, default policies,
+self-generated evidence — without the team having to assemble it
+themselves. Original design: section 6 of
+[`../docs/blueprint.md`](../docs/blueprint.md), details in
 [`../docs/golden-paths.md`](../docs/golden-paths.md).
 
-## Template hiện có
+## Available templates
 
-| Template | Dùng cho | Trạng thái |
+| Template | Use for | Status |
 |---|---|---|
-| [`api-service/`](api-service/) | API backend (Python/Starlette) + frontend tĩnh + IaC AWS tối thiểu + manifest K8s | Đã dogfood tại M5 (xem dưới) |
+| [`api-service/`](api-service/) | API backend (Python/Starlette) + static frontend + minimal AWS IaC + K8s manifests | Dogfooded at M5 (see below) |
 
-Template gồm: khung mã nguồn (backend/frontend), Dockerfile chuẩn (base
-image đang được duy trì, non-root, healthcheck), IaC chuẩn (mã hoá mặc
-định, security group không mở ra Internet ở cổng ứng dụng/SSH — rule dạng
-tài nguyên `aws_vpc_security_group_*_rule` riêng), manifest K8s chuẩn
-(non-root, drop ALL capabilities, probes, secret qua tham chiếu), CI gọi
-10 gates (`.github/workflows/ci.yml`), cấu hình `devsecops-os.yml` mặc
-định an toàn, CODEOWNERS và `branch-protection.json` (protection-as-code
-tham chiếu).
+A template includes: a source-code skeleton (backend/frontend), a standard
+Dockerfile (maintained base image, non-root, healthcheck), standard IaC
+(encryption by default, security groups not open to the Internet on the
+application/SSH ports — rules as separate
+`aws_vpc_security_group_*_rule` resources), standard K8s manifests
+(non-root, drop ALL capabilities, probes, secrets by reference), CI that
+calls 10 gates (`.github/workflows/ci.yml`), a secure-by-default
+`devsecops-os.yml` configuration, CODEOWNERS and `branch-protection.json`
+(reference protection-as-code).
 
-## Tạo một service mới từ template (từng bước)
+## Create a new service from a template (step by step)
 
-1. **Sao chép** toàn bộ thư mục `api-service/` thành thư mục/repo của
-   service mới. (Khi tổ chức tách repo riêng: giữ nguyên cây này, trỏ
-   `uses:` trong workflow sang repo hệ thống — xem chú thích đầu file
-   `.github/workflows/ci.yml`.)
-2. **Đổi tên**: thay `example-service` bằng tên service ở mọi file
-   (app, IaC, manifest, README của service), đổi tên secret mẫu
-   `EXAMPLE_API_KEY` theo provider thật.
-3. **Điền README của service**: mục "Service này làm gì" + mức nhạy cảm
-   dữ liệu; mục Vận hành (deploy/rollback/on-call).
-4. **Cấu hình**: rà `devsecops-os.yml` — giữ nguyên tắc mặc định (gate 1
-   và gate 9 chặn; còn lại report-only) cho tới khi hiệu chuẩn xong trên
-   lịch sử của chính service.
-5. **CODEOWNERS**: thay `@your-org/...` bằng team thật; áp
-   `branch-protection.json` cho nhánh chính bằng công cụ quản trị của tổ
-   chức.
-6. **Chạy thử toàn bộ pipeline tại chỗ trước PR đầu tiên** (đúng các
-   script mà CI sẽ gọi):
+1. **Copy** the entire `api-service/` directory into the new service's
+   directory/repo. (When the organization splits out a separate repo:
+   keep this tree as is and point `uses:` in the workflow at the system
+   repo — see the note at the top of `.github/workflows/ci.yml`.)
+2. **Rename**: replace `example-service` with the service name in every
+   file (app, IaC, manifests, the service README), and rename the sample
+   secret `EXAMPLE_API_KEY` after the real provider.
+3. **Fill in the service README**: the "What this service does" section +
+   the data sensitivity level; the Operations section
+   (deploy/rollback/on-call).
+4. **Configuration**: review `devsecops-os.yml` — keep the default
+   principle (gate 1 and gate 9 block; the rest are report-only) until
+   calibration is complete on the service's own history.
+5. **CODEOWNERS**: replace `@your-org/...` with the real teams; apply
+   `branch-protection.json` to the main branch using the organization's
+   administration tooling.
+6. **Run the full pipeline locally before the first PR** (exactly the
+   scripts CI will call):
    ```bash
-   export REPO_ROOT=<repo-he-thong> WORKLOAD=<thu-muc-service> \
+   export REPO_ROOT=<system-repo> WORKLOAD=<service-dir> \
           OUT_ROOT=evidence/output/local-<service> \
           COMMIT_SHA=local-dogfood TOOLS_DIR=~/workspace/tools
    for g in gates/local/gate-*.sh; do bash "$g"; done
@@ -49,22 +52,24 @@ tham chiếu).
        --run-id local-<service> --out-dir evidence/bundles/local-<service>
    python3 evidence/verify_bundle.py evidence/bundles/local-<service>
    ```
-   Kỳ vọng: mọi gate PASS (gate 10 tắt mặc định — job hoàn thành, không
-   chặn), kiểm chứng báo `bundle OK`.
-7. **Mở PR đầu tiên** — trên GitHub Actions, cùng bộ workflow phải xanh
-   ngay lần chạy đầu (tiêu chí nghiệm thu 5; phần Actions thật kiểm
-   chứng ở mốc phát hành M5-B).
+   Expected: every gate PASSes (gate 10 is off by default — the job
+   completes without blocking), and verification reports `bundle OK`.
+7. **Open the first PR** — on GitHub Actions, the same workflow set must
+   be green on the very first run (acceptance criterion 5; real Actions
+   verification happens at the M5-B release milestone).
 
-Điều kiện an toàn R7 (blueprint mục 7): template **tự nó phải qua được bộ
-gates của chính hệ** — đó là lý do có dogfood dưới đây, và mọi thay đổi
-vào template phải chạy lại dogfood trước khi được nhận.
+Safety condition R7 (blueprint section 7): the template **itself must
+pass the system's own gate suite** — that is why the dogfood below
+exists, and every change to a template must re-run the dogfood before it
+is accepted.
 
-## Dogfood (bằng chứng tại chỗ)
+## Dogfood (local evidence)
 
-Tại M5, service mẫu [`../examples/checkout-sample/`](../examples/checkout-sample/)
-được dựng **từ chính template này** (không sao chép từ payments-sample) và
-chạy toàn bộ pipeline cục bộ: 10 gates, bó bằng chứng, kiểm chứng một
-lệnh. Biên bản đầy đủ (thời gian và kết quả từng bước):
+At M5, the sample service [`../examples/checkout-sample/`](../examples/checkout-sample/)
+was built **from this very template** (not copied from payments-sample)
+and run through the full local pipeline: 10 gates, an evidence bundle,
+single-command verification. The full record (timings and per-step
+results):
 [`../release/dogfood-checkout-sample.md`](../release/dogfood-checkout-sample.md).
-Phần "CI xanh trên GitHub Actions thật" thuộc nghiệm thu M5-B —
-**UNVERIFIED** tại thời điểm viết.
+The "CI green on real GitHub Actions" part belongs to M5-B acceptance —
+**UNVERIFIED** at the time of writing.
