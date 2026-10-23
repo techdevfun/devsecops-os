@@ -1,20 +1,20 @@
-# checkout-sample — service sinh ra từ golden path (template README)
+# checkout-sample — service generated from the golden path (template README)
 
-> Service mẫu thứ hai của devsecops-os, dựng **từ golden path
-> `templates/api-service`** tại M5 (không sao chép từ payments-sample) để
-> kiểm chứng tiêu chí "service mới onboard bằng đường đã lát". Biên bản
-> dogfood (thời gian + kết quả từng bước của pipeline):
+> The second sample service of devsecops-os, built **from the golden path
+> `templates/api-service`** at M5 (not copied from payments-sample) to
+> verify the criterion "a new service onboards via the paved path". The dogfood
+> record (time + result of each step of the pipeline):
 > [`../../release/dogfood-checkout-sample.md`](../../release/dogfood-checkout-sample.md).
 
-## Service này làm gì
+## What this service does
 
-API giỏ hàng/checkout tối thiểu cho mục đích dogfood: `/health` và
-resource mẫu `items` (in-memory). Dữ liệu: không dữ liệu thật, không
-thông tin thanh toán — mức nhạy cảm **internal**. Nó tồn tại để chứng
-minh template tự qua được bộ gates của chính hệ (điều kiện R7 của
-blueprint); nghiệp vụ checkout thật nằm ngoài phạm vi pha 1.
+A minimal cart/checkout API for dogfood purposes: `/health` and a
+sample resource `items` (in-memory). Data: no real data, no
+payment information — sensitivity level **internal**. It exists to prove
+the template passes the system's own gate suite on its own (condition R7 of
+the blueprint); real checkout business logic is outside phase 1 scope.
 
-## Chạy local
+## Run locally
 
 ```bash
 cd backend
@@ -24,39 +24,39 @@ PORT=8000 python app.py
 curl http://127.0.0.1:8000/health
 ```
 
-Frontend tĩnh: `python3 -m http.server 3000 --directory frontend`.
+Static frontend: `python3 -m http.server 3000 --directory frontend`.
 
-## Cấu hình & secret
+## Configuration & secrets
 
-- Mọi cấu hình qua biến môi trường (`backend/config.py`). Secret CHỈ đến
-  từ secret store của nền tảng lúc triển khai — không giá trị dự phòng
-  ghi cứng, không secret trong manifest (k8s dùng `secretKeyRef`).
-- Danh sách biến môi trường: `SERVICE_NAME`, `ENVIRONMENT`,
-  `CHECKOUT_API_KEY` (đổi tên theo provider thật của service).
+- All configuration via environment variables (`backend/config.py`). Secrets ONLY come
+  from the platform's secret store at deployment time — no hardcoded fallback
+  values, no secrets in manifests (k8s uses `secretKeyRef`).
+- Environment variable list: `SERVICE_NAME`, `ENVIRONMENT`,
+  `CHECKOUT_API_KEY` (rename to the service's real provider).
 
-## Kiểm soát bảo mật có sẵn (từ template)
+## Built-in security controls (from the template)
 
-- 10 CI gates của devsecops-os chạy trên mọi PR (`.github/workflows/`),
-  mặc định an toàn: gate 1 (secret) và gate 9 (vệ sinh pipeline) ở chế độ
-  **chặn**; các gate còn lại **report-only** cho tới khi hiệu chuẩn xong
-  trên lịch sử của chính service (nguyên tắc blueprint: backtest →
+- The 10 devsecops-os CI gates run on every PR (`.github/workflows/`),
+  safe by default: gate 1 (secret) and gate 9 (pipeline hygiene) in
+  **blocking** mode; the remaining gates **report-only** until calibration is complete
+  on the service's own history (blueprint principle: backtest →
   report-only → enforce).
-- Policy mặc định: pack pha 1 (ISO 27001:2022 / NIST CSF+SSDF / PCI DSS 4
-  ánh xạ tham chiếu) qua `devsecops-os.yml`.
-- Dockerfile chuẩn: base image đang được duy trì, non-root, healthcheck.
-- Manifest K8s chuẩn: `runAsNonRoot`, drop ALL capabilities, resource
-  limits, probes, secret qua tham chiếu.
-- IaC chuẩn: mã hoá mặc định, security group không mở ra Internet ở cổng
-  ứng dụng/SSH (rule dạng tài nguyên riêng `aws_vpc_security_group_*_rule`).
-- Bằng chứng: mỗi lần CI chạy sinh evidence bundle có SHA-256 manifest,
-  kiểm chứng bằng một lệnh (`evidence/verify_bundle.py` ở repo hệ thống).
+- Default policy: phase 1 pack (ISO 27001:2022 / NIST CSF+SSDF / PCI DSS 4
+  reference mapping) via `devsecops-os.yml`.
+- Standard Dockerfile: a currently maintained base image, non-root, healthcheck.
+- Standard K8s manifests: `runAsNonRoot`, drop ALL capabilities, resource
+  limits, probes, secrets via reference.
+- Standard IaC: encryption by default, security group not open to the Internet on
+  application/SSH ports (rules in the separate resource form `aws_vpc_security_group_*_rule`).
+- Evidence: each CI run produces an evidence bundle with a SHA-256 manifest,
+  verified with a single command (`evidence/verify_bundle.py` in the system repo).
 
-## Vận hành
+## Operations
 
-- **Deploy**: không áp dụng — service mẫu dogfood, không triển khai thật.
-- **Rollback**: không áp dụng (như trên).
-- **On-call / liên hệ sự cố**: không áp dụng (như trên); quyền sở hữu code xem CODEOWNERS.
-  CODEOWNERS cho quyền sở hữu code).
-- **Nhật ký & bằng chứng**: bundle bằng chứng của từng lần chạy nằm ở
-  artefact CI / kho bằng chứng của tổ chức (cấu hình trong
-  `devsecops-os.yml`, mục `evidence`).
+- **Deploy**: not applicable — dogfood sample service, not really deployed.
+- **Rollback**: not applicable (as above).
+- **On-call / incident contact**: not applicable (as above); for code ownership see CODEOWNERS.
+  CODEOWNERS for code ownership).
+- **Logs & evidence**: the evidence bundle of each run is in the
+  CI artefact / the organization's evidence store (configured in
+  `devsecops-os.yml`, the `evidence` section).
