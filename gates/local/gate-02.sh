@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Gate 2 — SAST (Semgrep, ruleset p/security-audit + p/python).
-# Mặc định report-only khi mới lắp (blueprint mục 5.1 + bài học flagship
-# #1): gate này KHÔNG chặn ở pha 1 — chỉ sinh SARIF + đếm finding theo
-# severity vào bản tóm tắt để hiệu chuẩn sau.
-# Semgrep không cho hai --output trong một lần chạy -> chạy hai lần
-# (lần 2 dùng cache ruleset). Lỗi quét -> scan-error.json + thoát 2,
-# không bao giờ ngụy trang thành 0 finding.
+# Gate 2 — SAST (Semgrep, rulesets p/security-audit + p/python).
+# Report-only by default on first installation (blueprint section 5.1 + the flagship
+# #1 lesson): this gate does NOT block in phase 1 — it only produces SARIF + counts findings by
+# severity into the summary for later calibration.
+# Semgrep does not allow two --output flags in one run -> run it twice
+# (the second run uses the cached rulesets). Scan error -> scan-error.json + exit 2,
+# never disguised as 0 findings.
 source "$(dirname "$0")/lib.sh"
 gate_begin 02 sast
 
@@ -21,7 +21,7 @@ TARGETS=("$WORKLOAD/backend" "$WORKLOAD/frontend")
   "${TARGETS[@]}" > "$GATE_OUT/semgrep-json.log" 2>&1
 
 if [ ! -s "$GATE_OUT/semgrep.sarif" ] || [ ! -s "$GATE_OUT/semgrep.json" ]; then
-  echo "[gate 02] LỖI: semgrep không sinh đủ đầu ra — xem semgrep-*.log"
+  echo "[gate 02] ERROR: semgrep did not produce complete output — see semgrep-*.log"
   printf '%s\n' '{"error": "semgrep scan failed", "logs": ["semgrep-sarif.log", "semgrep-json.log"]}' \
     > "$GATE_OUT/scan-error.json"
   exit 2
