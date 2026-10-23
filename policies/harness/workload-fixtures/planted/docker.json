@@ -15,19 +15,19 @@
     {
       "eol": "2026-04-01",
       "image": "python",
-      "note": "CPython 3.10 EOL thang 4/2026",
+      "note": "CPython 3.10 EOL April 2026",
       "tag_prefix": "3.10"
     },
     {
       "eol": "2024-08-01",
       "image": "python",
-      "note": "Debian bullseye het ho tro thuong",
+      "note": "Debian bullseye out of regular support",
       "tag_contains": "bullseye"
     },
     {
       "eol": "2027-04-01",
       "image": "python",
-      "note": "CPython 3.11 EOL thang 4/2027 (du phong)",
+      "note": "CPython 3.11 EOL April 2027 (forecast)",
       "tag_prefix": "3.11"
     }
   ]
