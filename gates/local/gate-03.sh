@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Gate 3 — SCA (osv-scanner trên lockfile/requirements của workload).
-# Gate này PHÁT HIỆN; quyết định chặn thuộc gate 8 (KEV/EPSS) theo
-# blueprint — tránh chặn theo CVSS thô.
-# Kỷ luật "không sạch im lặng": nếu osv-scanner lỗi phân giải (mạng/API)
-# khiến 0 dependency được quét trong khi workload có requirements.txt,
-# gate thử lại tối đa 3 lần; vẫn lỗi -> thoát 2 (lỗi hạ tầng) kèm
-# scan-error.json, KHÔNG BAO GIỜ báo 0 lỗ hổng giả.
+# Gate 3 — SCA (osv-scanner over the workload's lockfiles/requirements).
+# This gate DETECTS; the blocking decision belongs to gate 8 (KEV/EPSS) per the
+# blueprint — avoiding blocking on raw CVSS.
+# "Never silently clean" discipline: if an osv-scanner resolution error (network/API)
+# leaves 0 dependencies scanned while the workload has a requirements.txt,
+# the gate retries up to 3 times; still failing -> exit 2 (infrastructure error) with
+# scan-error.json, NEVER reporting a false 0 vulnerabilities.
 source "$(dirname "$0")/lib.sh"
 gate_begin 03 sca
 
@@ -31,15 +31,15 @@ for r in doc.get("results", []) or []:
 print(n)
 PYEOF
 )
-  echo "[gate 03] lần thử $attempt: osv-scanner exit=$rc, $ndeps package được quét"
+  echo "[gate 03] attempt $attempt: osv-scanner exit=$rc, $ndeps packages scanned"
   if [ "$ndeps" -gt 0 ] || [ "$attempt" -ge 3 ]; then break; fi
   attempt=$((attempt + 1))
   sleep 3
 done
 
 if [ "$ndeps" -eq 0 ] && grep -rq "==" "$WORKLOAD" --include=requirements.txt; then
-  echo "[gate 03] LỖI HẠ TẦNG: osv-scanner không quét được dependency nào" \
-       "sau $attempt lần thử — xem osv.log (KHÔNG coi là sạch)"
+  echo "[gate 03] INFRASTRUCTURE ERROR: osv-scanner could not scan any dependency" \
+       "after $attempt attempts — see osv.log (do NOT treat as clean)"
   printf '{"error": "osv-scanner resolution failed after %s attempts", "log": "osv.log"}\n' \
     "$attempt" > "$GATE_OUT/scan-error.json"
   exit 2
