@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Gate 6 — chuỗi SBOM + attestation chạy thật ở cục bộ:
-  1. đóng gói artefact (tar.gz của biến thể workload) + digest SHA-256;
-  2. Syft sinh SBOM CycloneDX của artefact;
-  3. Cosign: sinh khoá cục bộ tạm thời, ký SBOM (sign-blob), verify-blob;
-  4. sinh provenance (định dạng SLSA v1 rút gọn, builder cục bộ — SLSA
-     Build L1: build trên máy/runner thường, không có nền tảng build
-     cách ly như slsa-github-generator ở CI — ghi đúng mức này);
-  5. ghi evidence record `sbom` + `provenance-attestation` và input
-     cho policy devsecops.provenance.
+"""Gate 6 — the SBOM + attestation chain, run for real locally:
+  1. package the artefact (tar.gz of the workload variant) + SHA-256 digest;
+  2. Syft generates a CycloneDX SBOM of the artefact;
+  3. Cosign: generate a temporary local key, sign the SBOM (sign-blob), verify-blob;
+  4. generate provenance (condensed SLSA v1 format, local builder — SLSA
+     Build L1: built on a regular machine/runner, with no isolated build platform
+     like slsa-github-generator in CI — recorded honestly at this level);
+  5. write the `sbom` + `provenance-attestation` evidence records and the input
+     for policy devsecops.provenance.
 """
 import argparse
 import hashlib
@@ -27,12 +27,12 @@ def sha256_file(p: Path) -> str:
 
 def run(cmd, **kw):
     kw.setdefault("timeout", 900)
-    # stdin=DEVNULL: mọi prompt tương tác bất ngờ của công cụ (ví dụ
-    # cosign hỏi ghi đè khoá) phải fail ngay, không treo cả pipeline.
+    # stdin=DEVNULL: any unexpected interactive prompt from a tool (for example
+    # cosign asking to overwrite a key) must fail immediately, not hang the whole pipeline.
     kw.setdefault("stdin", subprocess.DEVNULL)
     r = subprocess.run(cmd, capture_output=True, text=True, **kw)
     if r.returncode != 0:
-        print(f"[provenance] LỖI chạy {' '.join(map(str, cmd))}:\n"
+        print(f"[provenance] ERROR running {' '.join(map(str, cmd))}:\n"
               f"{r.stdout}\n{r.stderr}", file=sys.stderr)
         raise SystemExit(2)
     return r
@@ -47,8 +47,8 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--commit-sha", required=True)
     ap.add_argument("--signing-config", required=True,
-                    help="Signing config KHÔNG có Rekor (ký offline bằng "
-                         "khoá cục bộ — xem gates/local/README trong "
+                    help="Signing config WITHOUT Rekor (offline signing with a "
+                         "local key — see gates/local/README in "
                          "signing-config-offline.json)")
     a = ap.parse_args()
 
@@ -72,18 +72,18 @@ def main() -> int:
     print(f"[provenance] SBOM CycloneDX: {n_components} components")
 
     env = dict(os.environ, COSIGN_PASSWORD="")
-    # Khoá là TẠM THỜI theo từng lần chạy: xoá khoá cũ nếu thư mục đầu
-    # ra được dùng lại (generate-key-pair sẽ hỏi ghi đè và treo nếu
-    # khoá đã tồn tại).
+    # The key is EPHEMERAL per run: delete old keys if the output
+    # directory is reused (generate-key-pair would prompt to overwrite and hang if
+    # a key already exists).
     for old in ("cosign.key", "cosign.pub"):
         (out / old).unlink(missing_ok=True)
     run([a.cosign, "generate-key-pair"], cwd=out, env=env)
-    # Cosign v3: --output-signature đã deprecated; định dạng hiện hành
-    # là bundle Sigstore (--bundle). Ký bằng khoá cục bộ + signing
-    # config đã lược bỏ Rekor => ký hoàn toàn offline, không đẩy gì
-    # lên transparency log công cộng; phía xác minh vì thế dùng
-    # --insecure-ignore-tlog (đúng bản chất SLSA L1 cục bộ; ở CI dùng
-    # keyless OIDC + Rekor sẽ có tlog đầy đủ — M5).
+    # Cosign v3: --output-signature is deprecated; the current format
+    # is the Sigstore bundle (--bundle). Signing with a local key + a signing
+    # config with Rekor stripped out => fully offline signing, nothing pushed
+    # to a public transparency log; the verification side therefore uses
+    # --insecure-ignore-tlog (true to the nature of local SLSA L1; in CI,
+    # keyless OIDC + Rekor will have a full tlog — M5).
     bundle_path = out / "sbom.bundle.json"
     run([a.cosign, "sign-blob", "--key", "cosign.key",
          "--bundle", str(bundle_path),
@@ -93,7 +93,7 @@ def main() -> int:
          "--bundle", str(bundle_path), "--insecure-ignore-tlog",
          str(sbom_path)], cwd=out, env=env)
     print("[provenance] cosign sign-blob + verify-blob (bundle, "
-          "offline, không tlog): OK")
+          "offline, no tlog): OK")
 
     builder = ("devsecops-os gate-06 local runner "
                "(CI: slsa-github-generator)")
@@ -137,7 +137,7 @@ def main() -> int:
     }
     (out / "provenance.input.json").write_text(
         json.dumps(policy_input, indent=2) + "\n")
-    print("[provenance] records + policy input đã ghi")
+    print("[provenance] records + policy input written")
     return 0
 
 
