@@ -35,6 +35,20 @@ KEV_REFERENCE = [{
                "gates 3/8 from OSV + the CISA KEV/EPSS feeds at run time.",
 }]
 
+RUNTIME_FLOORS_PATH = (Path(__file__).resolve().parents[1]
+                       / "data" / "runtime_floors.json")
+
+
+def load_runtime_floors() -> dict:
+    """The pack's runtime-floor data file (policies/data/), embedded
+    into the docker input so policies stay pure functions of input —
+    the same pattern as EOL_IMAGES below."""
+    try:
+        return json.loads(RUNTIME_FLOORS_PATH.read_text())
+    except OSError:
+        return {}
+
+
 EOL_IMAGES = [
     {"image": "python", "tag_prefix": "3.10", "eol": "2026-04-01",
      "note": "CPython 3.10 EOL April 2026"},
@@ -189,7 +203,8 @@ def extract_docker(variant_dir: Path) -> dict:
                 image, tag = ref, "latest"
             images.append({"image": image, "tag": tag, "digest": None})
     return {"dockerfiles": [{"path": "Dockerfile", "images": images}],
-            "eol_images": EOL_IMAGES}
+            "eol_images": EOL_IMAGES,
+            "runtime_floors": load_runtime_floors()}
 
 
 def main() -> int:
