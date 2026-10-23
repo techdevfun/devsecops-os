@@ -1,9 +1,9 @@
-# MẪU TĨNH (M1) — chưa kiểm chứng trên cluster thật.
-# ClusterPolicy Kyverno: chỉ nhận image đã ký keyless bằng danh tính OIDC của
-# workflow thuộc tổ chức VÀ có SLSA provenance attestation. Image không đạt
-# bị từ chối ở admission; quyết định từ chối cũng là bằng chứng (xem
-# docs/architecture.md mục 4).
-# Trước khi dùng PHẢI thay: <OWNER>/<REPO>, registry và mẫu tên image.
+# STATIC SAMPLE (M1) — not verified on a real cluster.
+# Kyverno ClusterPolicy: only accepts images signed keyless with the OIDC
+# identity of an organisation workflow AND carrying a SLSA provenance
+# attestation. A nonconforming image is rejected at admission; the rejection
+# decision is itself evidence (see docs/architecture.md, section 4).
+# Before use you MUST replace: <OWNER>/<REPO>, the registry and image name patterns.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -29,7 +29,7 @@ spec:
                 - Pod
       verifyImages:
         - imageReferences:
-            # Thay bằng registry + mẫu image của tổ chức
+            # Replace with the organisation's registry + image patterns
             - "registry.example.internal/payments/*"
           attestors:
             - entries:
