@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Lệnh kiểm chứng bundle MỘT LỆNH của devsecops-os (tiêu chí nghiệm
-thu số 4 của blueprint): kiểm hash toàn bundle theo manifest +
-bundle.sha256 và kiểm lại schema M2 của mọi record.
+"""Single-command bundle verification for devsecops-os (blueprint
+acceptance criterion 4): verify the hashes of the whole bundle against the manifest +
+bundle.sha256 and re-check the M2 schema of every record.
 
-    python3 evidence/verify_bundle.py <thư-mục-bundle>
+    python3 evidence/verify_bundle.py <bundle-dir>
 
-Mã thật nằm ở bundle_tool.py (cùng thư mục) — file này chỉ là lối
-vào ngắn cho đúng hợp đồng "một lệnh duy nhất".
+The real code lives in bundle_tool.py (same directory) — this file is only a
+short entry point for the "single command" contract.
 """
 
 import os
