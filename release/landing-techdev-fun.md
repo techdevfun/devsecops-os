@@ -1,10 +1,12 @@
-# Nội dung trang giới thiệu devsecops-os cho techdev.fun — BẢN SOẠN SẴN (M5-A)
+# Landing-page content for devsecops-os on techdev.fun — PREPARED DRAFT (M5-A)
 
-> Trạng thái: **đã soạn, CHƯA deploy**. File này là nguồn nội dung để
-> Tổng quản/chủ sở hữu duyệt và đưa lên techdev.fun ở mốc phát hành
-> (M5-B) sau khi repo qua cổng 99/100. Mọi con số dưới đây lấy từ bằng
-> chứng kiểm chứng trong repo và được ghi nhãn "cục bộ" khi chưa có số
-> đo trên GitHub Actions thật — không sửa các nhãn này khi đăng.
+> Status: **prepared at M5-A; the repository has since been released
+> publicly (M5-B) and this content deployed to techdev.fun**. This
+> file is the content source for the project's page. Every number
+> below comes from verification evidence in this repo; figures that
+> were local-only at drafting time are labelled as such, and the
+> GitHub Actions measurements taken at release are stated where
+> they apply — do not strip these labels when publishing.
 
 ---
 
@@ -12,77 +14,90 @@
 
 # devsecops-os
 
-**Lớp điều hành DevSecOps + AI SecOps mã nguồn mở cho tổ chức bị quản
-chế.** Policy-as-code ánh xạ sẵn tới ISO 27001:2022, NIST CSF/SSDF,
-PCI DSS 4.0 và APRA CPS 234/230 — chạy trong CI của chính bạn, bằng
-chứng kiểm toán tự sinh từ mỗi lần chạy pipeline. Không server trung
-gian, không dữ liệu nào rời hạ tầng của tổ chức.
+**An open-source DevSecOps + AI SecOps operating layer for regulated
+organisations.** Policy-as-code pre-mapped to ISO 27001:2022, NIST
+CSF/SSDF, PCI DSS 4.0 and APRA CPS 234/230 — running in your own CI,
+with audit evidence generated automatically from every pipeline run.
+No intermediary server, no data leaves your organisation's
+infrastructure.
 
-[Demo GIF — release/demo/demo-terminal.gif: bộ gates chạy thật trên
-workload mẫu hai biến thể + kiểm chứng evidence bundle]
+[Demo GIF — release/demo/demo-terminal.gif: the gate suite running
+for real on the two-variant sample workload + evidence bundle
+verification]
 
-**Ai đang đau:** CISO và đội platform ở ngân hàng/tài chính/bảo hiểm —
-nơi mỗi đội tự lắp pipeline bảo mật một kiểu, chính sách tuân thủ nằm
-trong tài liệu Word, và đến mùa kiểm toán thì cả tổ chức đi gom bằng
-chứng thủ công. devsecops-os làm đúng phần còn thiếu đó: một "đường
-chuẩn" (golden path) để service mới sinh ra đã đạt kiểm soát, chính sách
-dạng mã nằm trong repo của chính tổ chức, và bằng chứng là sản phẩm phụ
-tự động của vận hành — pipeline không chỉ chặn lỗi, nó tự chứng minh nó
-đã chặn.
+**Who hurts:** CISOs and platform teams in banking/finance/insurance
+— where every team assembles its security pipeline differently,
+compliance policy lives in Word documents, and at audit time the
+whole organisation gathers evidence by hand. devsecops-os builds
+exactly that missing part: a golden path so a new service is born
+meeting the controls, policy as code living in the organisation's
+own repositories, and evidence as an automatic by-product of
+operations — the pipeline does not only block faults, it proves
+that it did.
 
-## [Cách nó hoạt động]
+## [How it works]
 
-1. **10 CI gates** trên mọi pull request: quét secret, SAST, SCA, IaC,
-   container, SBOM + attestation, giấy phép, ưu tiên lỗ hổng theo
-   CISA KEV/EPSS, vệ sinh pipeline, và một gate review AI tuỳ chọn
-   (mặc định tắt).
-2. **Policy ở trung tâm**: 14 policy (OPA/Rego + Kyverno) ánh xạ tới các
-   khung kiểm soát — ánh xạ *tham chiếu* phục vụ chuẩn bị kiểm toán,
-   không phải chứng nhận tuân thủ.
-3. **Evidence bundle**: mỗi lần chạy đóng thành một gói có manifest
-   SHA-256, kiểm chứng toàn vẹn bằng **một lệnh** — kể cả phát hiện sửa
-   đổi 1 byte.
-4. **Golden path**: template service (API + IaC + manifest + CI) để đội
-   ngũ onboard trong vài phút thay vì tự lắp ráp nhiều tuần.
+1. **10 CI gates** on every pull request: secret scanning, SAST,
+   SCA, IaC, container, SBOM + attestation, licensing,
+   vulnerability prioritisation by CISA KEV/EPSS, pipeline hygiene,
+   and an optional AI review gate (off by default).
+2. **Policy at the centre**: 14 policies (OPA/Rego + Kyverno) mapped
+   to the control frameworks — *reference* mappings to support
+   audit preparation, not a compliance certification.
+3. **Evidence bundle**: every run is packaged with a SHA-256
+   manifest and its integrity verified with **one command** —
+   including detecting a 1-byte edit.
+4. **Golden path**: a service template (API + IaC + manifests + CI)
+   so teams onboard in minutes instead of assembling everything over
+   weeks.
 
-## [Bằng chứng, không lời hứa]
+## [Evidence, not promises]
 
-- Workload mẫu hai biến thể chạy thật: bản sạch qua cả 10 gate; bản gài
-  đúng 4 lỗi có chủ đích (secret giả, dependency dính CVE thuộc CISA
-  KEV, security group mở 0.0.0.0/0, base image đóng băng từ 2022) bị
-  chặn ở **đúng 4 gate tương ứng**, không chặn nhầm, không lọt lỗi nào.
-- Policy harness: 34/34 kiểm tra đạt. Evidence bundle: kiểm chứng đạt
-  trên cả hai biến thể; thử sửa 1 byte → kiểm chứng FAIL và chỉ đúng
-  file bị sửa.
-- Golden path đã dogfood: dựng service thứ hai từ template, toàn bộ
-  pipeline cục bộ xanh ngay lần chạy đầu trong ~100 giây.
+- The two-variant sample workload runs for real: the clean variant
+  passes all 10 gates; the variant with exactly 4 planted faults
+  (fake secret, dependency carrying a CVE in CISA KEV, security
+  group open to 0.0.0.0/0, base image frozen since 2022) is blocked
+  at **exactly the 4 corresponding gates** — no false blocks,
+  nothing slips through.
+- Policy harness: 34/34 checks pass. Evidence bundle: verification
+  passes on both variants; a 1-byte edit → verification FAILS and
+  names exactly the edited file.
+- The golden path has been dogfooded: a second service built from
+  the template, the full local pipeline green on the first run in
+  ~100 seconds.
 
-*(Số đo trên là số đo cục bộ trên máy kiểm chứng của dự án. Thời gian
-workflow trên GitHub Actions thật sẽ được công bố sau nghiệm thu phát
-hành — trang này không đăng con số chưa đo.)*
+*(The measurements above are local measurements on the project's
+verification machine. The workflow timings on real GitHub Actions,
+measured at release: master workflow median 58 seconds over 3 runs;
+golden path green on its first CI run, 5 minutes 42 seconds for
+build + CI — see the README status banner.)*
 
-## [Giới hạn đã biết — nói thẳng]
+## [Known limits — stated plainly]
 
-- Đây là **pha 1**: GitHub Actions là nền CI được cài đặt; GitLab/
-  Jenkins/on-prem là điểm tích hợp đã thiết kế, chưa cài đặt.
-- Bằng chứng dạng quyết định/định kỳ (biên bản thay đổi, báo cáo
-  drift, rà soát quyền truy cập, đường cơ sở cấu hình) **đã có bộ
-  sinh tự động** chạy trên dữ liệu của lần chạy/cây (vòng M5-A3,
-  truy vết 13/14 hàng) — nhưng giá trị kiểm toán đầy đủ của chúng
-  vẫn cần dữ liệu vận hành thật của tổ chức (phê duyệt PR thật,
-  lịch sử drift thật), thứ chỉ có sau khi áp dụng thực tế.
-- Record `change-record` ở các lần chạy cục bộ hiện bị policy
-  **DENY** vì không có phê duyệt PR thật — đúng bản chất: bằng chứng
-  trung thực về một thay đổi chưa qua phê duyệt, không phải lỗi.
-- Evidence bundle có toàn vẹn SHA-256 và ký được bằng Cosign ở mức
-  bundle — hiện mới ở mức khoá cục bộ tạm theo lần chạy (chưa gắn danh
-  tính OIDC/transparency log như ký keyless trên CI).
-- Hệ này **không thay thế** Harness, GitHub Advanced Security hay Snyk
-  về độ sâu quét và hỗ trợ enterprise — nó là lớp quản trị + bằng chứng
-  xuyên suốt nằm trên các công cụ đó.
+- This is **phase 1**: GitHub Actions is the implemented CI
+  platform; GitLab/Jenkins/on-prem are designed integration points,
+  not yet implemented.
+- Decision/periodic evidence (change records, drift reports,
+  access reviews, configuration baselines) **now has automatic
+  generators** running on the run's/tree's data (round M5-A3,
+  traceability 13/14 rows) — but their full audit value still needs
+  a real organisation's operating data (real PR approvals, real
+  drift history), which only exists after real adoption.
+- The `change-record` record in local runs is currently **DENIED**
+  by its policy because there is no real PR approval — that is its
+  nature: truthful evidence of a change that has not been approved,
+  not a bug.
+- Evidence bundles have SHA-256 integrity and can be Cosign-signed
+  at bundle level — bundles from CI runs are signed keyless with
+  Cosign via OIDC and verify themselves in the job; local bundles
+  still use a per-run temporary local key.
+- This system **does not replace** Harness, GitHub Advanced Security
+  or Snyk in scanning depth or enterprise support — it is the
+  cross-cutting governance + evidence layer that sits on top of
+  those tools.
 
-## [Bắt đầu]
+## [Get started]
 
-Repo GitHub và bài viết giới thiệu kỹ thuật (dev.to) sẽ được gắn tại
-đây khi dự án qua cổng phát hành 99/100 của nhà máy. Mã nguồn theo giấy
-phép MIT.
+GitHub repository: https://github.com/techdevfun/devsecops-os — the
+technical write-up is published on dev.to (linked from the
+repository). Source code under the MIT licence.
