@@ -1,31 +1,31 @@
 ---
-name: Báo lỗi
-about: Một cổng, policy, bộ sinh bằng chứng hoặc tài liệu chạy sai so với mô tả
+name: Bug report
+about: A gate, policy, evidence generator or document behaves incorrectly compared with its description
 title: "[bug] "
 labels: bug
 ---
 
-## Mô tả lỗi
+## Bug description
 
-<!-- Chuyện gì xảy ra, bạn kỳ vọng điều gì? -->
+<!-- What happened, and what did you expect? -->
 
-## Bước tái hiện
+## Steps to reproduce
 
 1.
 2.
 3.
 
-## Bằng chứng đính kèm
+## Attached evidence
 
-<!-- Dán output lệnh thật (đã che secret nếu có). Với lỗi của một
-     cổng: kèm thư mục lần chạy (gate-NN-*) hoặc record liên quan.
-     Với lỗi collector: kèm output của verify_bundle.py. -->
+<!-- Paste real command output (with secrets redacted if any). For a
+     gate bug: include the run directory (gate-NN-*) or the related
+     record. For a collector bug: include the output of verify_bundle.py. -->
 
 ```
 ```
 
-## Môi trường
+## Environment
 
-- Hệ điều hành / runner:
-- Phiên bản công cụ liên quan (opa/conftest/syft/...):
-- Phiên bản devsecops-os (xem CHANGELOG.md):
+- Operating system / runner:
+- Version of the related tool (opa/conftest/syft/...):
+- devsecops-os version (see CHANGELOG.md):
