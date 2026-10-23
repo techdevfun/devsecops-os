@@ -7,18 +7,20 @@ canonical_url: https://github.com/techdevfun/devsecops-os
 
 <!--
 ====================================================================
-BẢN NHÁP NỘI BỘ — TUYỆT ĐỐI CHƯA ĐĂNG (vòng M5-A3, 2026-10-22)
-Trạng thái sản phẩm: devsecops-os CHƯA phát hành. Repo GitHub chưa
-được tạo — dự án đang giữ cổng phát hành 99/100 của hội đồng nhà
-máy (điểm hiện tại: xem release/RELEASE-DOSSIER.md). Bài này chỉ
-được đăng trong ngày publish nếu cổng được mở.
-Mọi con số trong bài là số đo CỤC BỘ trên máy kiểm chứng của dự án
-và được ghi nhãn như vậy ngay trong bài. Không con số nào về thời
-gian GitHub Actions được nêu — phần đó chưa đo được khi chưa có
-repo (UNVERIFIED, không suy đoán).
-Việc cần làm khi publish: gắn link repo thật, nhúng GIF demo
-(release/demo/demo-terminal.gif), ảnh cover 1000x420, cập nhật
-canonical_url, ghi id + link bài vào hồ sơ phát hành (B6-13).
+INTERNAL DRAFT — ABSOLUTELY DO NOT PUBLISH (M5-A3 round, 2026-10-22)
+Product status: devsecops-os NOT released yet. The GitHub repo has
+not been created — the project is holding the factory council's
+99/100 release gate (current score: see
+release/RELEASE-DOSSIER.md). This article may only be posted on
+publish day if the gate opens.
+All numbers in this article are LOCAL measurements on the project's
+verification machine and are labeled as such right in the article.
+No GitHub Actions timing numbers are stated — that part could not
+be measured while there is no repo (UNVERIFIED, no guessing).
+To do when publishing: attach the real repo link, embed the demo
+GIF (release/demo/demo-terminal.gif), a 1000x420 cover image,
+update canonical_url, record the article id + link in the release
+dossier (B6-13).
 ====================================================================
 -->
 
@@ -177,7 +179,7 @@ bar; the demo below (a real terminal session: gates on both
 workload variants, a bundle verification, and a one-byte tamper
 that fails it) is the fastest way to see the shape of the thing.
 
-<!-- khi publish: nhúng release/demo/demo-terminal.gif tại đây -->
+<!-- when publishing: embed release/demo/demo-terminal.gif here -->
 
 If you've ever assembled audit evidence by hand from five different
 tools the week before an assessment — what did your process look
