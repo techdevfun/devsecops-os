@@ -1,21 +1,21 @@
-# evidence_completeness — bundle thiếu bằng chứng bắt buộc là chưa xong
+# evidence_completeness — a bundle missing required evidence is not done
 
-- **Mã**: `devsecops.evidence_completeness` · **Cơ chế**: OPA/Rego trên
-  manifest của evidence bundle · **Gate tiêu thụ**: "gate cuối"
-  (blueprint 5.2) do M4 collector chạy sau mọi gate khác · **Bằng
-  chứng**: `control-evidence-index` (chỉ mục theo kỳ) — policy này là
-  bộ đánh giá độ đầy đủ của chính hệ bằng chứng.
+- **Code**: `devsecops.evidence_completeness` · **Mechanism**: OPA/Rego over the
+  manifest of an evidence bundle · **Consuming gate**: the "final gate"
+  (blueprint 5.2) run by the M4 collector after all other gates · **Evidence**:
+  `control-evidence-index` (periodic index) — this policy is
+  the completeness evaluator of the evidence system itself.
 
-**Kiểm soát nào** (ánh xạ tham chiếu): ISO 27001 A.8.15–A.8.16 (ghi
-log và giám sát hoạt động — bằng chứng log CI bắt buộc có mặt, có
-hash); APRA CPS 234 (duy trì và kiểm tra kiểm soát có hệ thống —
-bằng chứng kiểm soát liên tục theo kỳ); SOC 2 CC7.2 ở mức tham chiếu.
+**Which control** (reference mapping): ISO 27001 A.8.15–A.8.16 (logging
+and monitoring of activities — CI log evidence must be present, with
+a hash); APRA CPS 234 (systematic maintenance and testing of controls —
+continuous control evidence on a periodic basis); SOC 2 CC7.2 at reference level.
 
-**Vì sao**: pipeline chặn lỗi mà không để lại bằng chứng thì mùa kiểm
-toán vẫn phải làm lại bằng tay — đúng nỗi đau mà flagship này tồn tại
-để xoá. "Evidence incomplete" phải là trạng thái nhìn thấy được, không
-phải im lặng coi như đạt.
+**Why**: a pipeline that blocks faults without leaving evidence means the audit
+season still has to be redone by hand — exactly the pain this flagship exists
+to remove. "Evidence incomplete" must be a visible state, not
+silence treated as passing.
 
-**Vi phạm thì sửa thế nào**: bật gate đang thiếu loại bằng chứng
-tương ứng; sửa collector nếu bằng chứng có sinh ra nhưng không vào
-bundle; không sửa tay manifest — bundle phải tái sinh từ lần chạy.
+**How to fix a violation**: enable the gate that is missing the corresponding evidence
+type; fix the collector if evidence is generated but does not enter
+the bundle; do not edit the manifest by hand — the bundle must be regenerated from the run.
