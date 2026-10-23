@@ -3,11 +3,14 @@
 The blueprint section 5 suite of 10 gates was installed at M3 and verified
 with real tools on both sample workload variants. Measured results:
 `gates/verification/results.md` (raw logs: `gates/verification/logs/`).
+Gate 11 (runtime version floor) was added on 2026-10-23 with policy pack
+1.2.0 — it closes a measured blind spot of gates 5/8 (see the gate 11 row
+below and `policies/docs/runtime_version.md`).
 
 ## Structure — why the gates live in two places
 
 GitHub only loads reusable workflows from the repo's `.github/workflows/`,
-so the 11 YAML files (10 gates + `all-gates.yml`) live there. But the real
+so the 12 YAML files (11 gates + `all-gates.yml`) live there. But the real
 runnable code of each gate is a SINGLE script `gates/local/gate-NN.sh` — the workflow
 only checks out, downloads the pinned tools (version + sha256 in
 `gates/local/fetch_tools.sh`), then calls exactly that script. That way the run
@@ -17,14 +20,14 @@ no "CI one way, dev machine another".
 | Directory/file | Role |
 |---|---|
 | `.github/workflows/gate-NN-*.yml` | Reusable workflow (`workflow_call`) for each gate |
-| `.github/workflows/all-gates.yml` | Umbrella workflow: runs all 10 gates on one workload variant + collects artefacts (the real collector is M4) |
+| `.github/workflows/all-gates.yml` | Umbrella workflow: runs all 11 gates on one workload variant + collects artefacts (the real collector is M4) |
 | `gates/local/gate-NN.sh` | The gate's real runnable code (shared by CI + local runs) |
 | `gates/local/lib.sh` | Shared library: run identification, evidence record writing, OPA invocation |
 | `gates/local/adapters/*.py` | Converters from scanner output → policy pack input / evidence records |
 | `gates/local/fetch_tools.sh` | Downloads version-pinned tools + verifies sha256 |
 | `gates/verification/` | M3 local verification runner + results |
 
-## The 10 gates ↔ tools ↔ policies ↔ evidence
+## The 11 gates ↔ tools ↔ policies ↔ evidence
 
 | # | Gate | Real tool (version at verification time) | Pack policy (M2) | Evidence produced |
 |---|---|---|---|---|
@@ -38,6 +41,7 @@ no "CI one way, dev machine another".
 | 8 | EPSS/CISA KEV | CISA KEV feed + FIRST EPSS downloaded at run time | `devsecops.dependency_kev` | `vuln-risk-ranking` + `policy-decision` |
 | 9 | Pipeline hygiene | Scans the repo's own `.github/workflows/` | `devsecops.pipeline_policy` | `pipeline-config-verification` + `policy-decision` |
 | 10 | AI PR Review Gate | Flagship #1 — **not published yet** | (when enabled: `pr-review-report`) | Off: only records the state, produces no evidence |
+| 11 | Runtime version floor | Declared-version check (no scanner): Dockerfile `FROM` versions vs the pack floor data | `devsecops.runtime_version` | `policy-decision` |
 
 Gate 10 is **OFF by default** in phase 1 (the `enabled`/`enable_ai_pr_review` inputs
 default to `false`, and the `ENABLE_AI_PR_REVIEW` variable for local runs): the wiring at
