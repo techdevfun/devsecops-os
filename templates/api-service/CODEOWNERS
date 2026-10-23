@@ -1,6 +1,6 @@
-# Quyền sở hữu code của service — thay bằng team/người thật khi onboard.
-# Mọi thay đổi vào các đường dẫn nhạy cảm (hạ tầng, CI, cấu hình gates)
-# cần review của chủ sở hữu tương ứng (branch protection áp cùng quy tắc).
+# Code ownership for the service — replace with the real team/person when onboarding.
+# Every change to sensitive paths (infrastructure, CI, gate configuration)
+# requires review by the corresponding owner (branch protection applies the same rule).
 *                  @your-org/service-team
 /infra/            @your-org/platform-team
 /.github/          @your-org/platform-team
