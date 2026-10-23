@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Gate 5 — Container scanning (Trivy image trên base image khai trong
-# Dockerfile) + policy devsecops.base_image (chặn cấu trúc EOL/latest).
-# Chặn (exit 1) khi: base_image DENY, hoặc tồn tại CVE CRITICAL có bản
-# vá thuộc CISA KEV (điều kiện chặn của blueprint mục 5.1).
-# Không có docker daemon trên máy kiểm chứng: trivy kéo image trực tiếp
-# từ registry bằng client của nó — không cần docker.
-# Kỷ luật "không sạch im lặng": trivy lỗi (DB/registry/dung lượng) ->
-# scan-error.json + thoát 2 nếu không có căn cứ chặn độc lập khác.
+# Gate 5 — Container scanning (Trivy image over the base image declared in the
+# Dockerfile) + policy devsecops.base_image (structural block on EOL/latest).
+# Blocks (exit 1) when: base_image DENYs, or a CRITICAL CVE exists that has a
+# fix and belongs to CISA KEV (the blocking condition of blueprint section 5.1).
+# There is no docker daemon on the verification machine: trivy pulls the image directly
+# from the registry with its own client — no docker needed.
+# "Never silently clean" discipline: a trivy error (DB/registry/disk space) ->
+# scan-error.json + exit 2 if there is no other independent blocking basis.
 source "$(dirname "$0")/lib.sh"
 gate_begin 05 container
 
@@ -35,13 +35,13 @@ EOF
     --out-vulns "$GATE_OUT/image-vulns.json" \
     --out-summary "$GATE_OUT/image-summary.json"
 else
-  echo "[gate 05] LỖI: trivy image không sinh được kết quả — xem trivy-image.log"
+  echo "[gate 05] ERROR: trivy image did not produce a result — see trivy-image.log"
   printf '%s\n' '{"error": "trivy image scan failed", "log": "trivy-image.log"}' \
     > "$GATE_OUT/scan-error.json"
 fi
 
-# Input base_image: tái dùng bộ trích FROM của harness M2 (phần trích
-# Dockerfile không thuộc phạm vi thay thế của M3) + dữ liệu EOL của pack.
+# base_image input: reuse the M2 harness's FROM extractor (the Dockerfile extraction
+# is outside M3's replacement scope) + the pack's EOL data.
 python3 - "$WORKLOAD" "$GATE_OUT" "$REPO_ROOT" <<'PYEOF'
 import json, sys
 from pathlib import Path
@@ -64,14 +64,14 @@ if [ "$scan_ok" -eq 1 ]; then
 import json, sys
 s = json.load(open(f"{sys.argv[1]}/image-summary.json"))
 if s["blocking_critical_fixed_kev"]:
-    print("[gate 05] CHẶN: có CVE CRITICAL có bản vá thuộc CISA KEV")
+    print("[gate 05] BLOCKED: a CRITICAL CVE with a fix belongs to CISA KEV")
     raise SystemExit(1)
-print("[gate 05] không có CVE thuộc nhóm chặn CRITICAL+fixed+KEV")
+print("[gate 05] no CVE in the CRITICAL+fixed+KEV blocking group")
 PYEOF
 elif [ "$rc" -eq 0 ]; then
-  echo "[gate 05] thoát 2: quét image lỗi và không có căn cứ chặn độc lập"
+  echo "[gate 05] exiting 2: image scan failed and there is no independent blocking basis"
   exit 2
 else
-  echo "[gate 05] CHẶN theo base_image; phần quét CVE của image CHƯA hoàn tất (scan-error.json)"
+  echo "[gate 05] BLOCKED by base_image; the image CVE scan did NOT complete (scan-error.json)"
 fi
 exit $rc
