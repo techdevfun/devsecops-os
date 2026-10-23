@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Kiểm chứng cục bộ M3: chạy 10 gates (đúng script mà workflow GitHub
-# gọi) trên CẢ HAI biến thể workload, đo thời gian từng gate, ghi log
-# thô vào gates/verification/logs/<variant>/ và bảng kết quả vào
-# gates/verification/results.json (+ in ra stdout).
+# M3 local verification: run the 10 gates (exactly the scripts the GitHub workflows
+# call) on BOTH workload variants, time each gate, write the raw
+# logs to gates/verification/logs/<variant>/ and the results table to
+# gates/verification/results.json (+ print to stdout).
 #
-# Cách dùng: bash gates/verification/run_verification.sh [clean|planted|all]
+# Usage: bash gates/verification/run_verification.sh [clean|planted|all]
 set -u
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 export REPO_ROOT
@@ -13,7 +13,7 @@ export TOOLS_DIR
 export PATH="$TOOLS_DIR:$PATH"
 WHICH="${1:-all}"
 
-tree_digest() { # định danh lần chạy cục bộ: sha256 trên cây file workload
+tree_digest() { # local run identifier: sha256 over the workload file tree
   (cd "$1" && find . -type f -exec sha256sum {} + | sort -k2 | sha256sum |
     awk '{print "local-tree-" substr($1, 1, 12)}')
 }
@@ -28,7 +28,7 @@ run_variant() {
   export WORKLOAD="$workload" OUT_ROOT="$out_root"
   export COMMIT_SHA="$(tree_digest "$workload")"
   export RUN_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo "=== Biến thể $variant | commit_sha=$COMMIT_SHA | ts=$RUN_TS ==="
+  echo "=== Variant $variant | commit_sha=$COMMIT_SHA | ts=$RUN_TS ==="
 
   : > "$logs/summary.tsv"
   local g start end dur rc
