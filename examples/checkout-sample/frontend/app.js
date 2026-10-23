@@ -1,5 +1,5 @@
 // checkout-sample frontend — deliberately minimal.
-// Gọi API cùng origin khi đã triển khai; khi chạy local, trỏ về cổng 8000.
+// Calls the API on the same origin when deployed; when running locally, points to port 8000.
 const API_BASE =
   window.location.port === "3000" ? "http://localhost:8000" : "";
 
@@ -16,7 +16,7 @@ async function refresh() {
     }
   } catch (e) {
     const li = document.createElement("li");
-    li.textContent = `Không gọi được API: ${e.message}`;
+    li.textContent = `Could not call the API: ${e.message}`;
     list.appendChild(li);
   }
 }
@@ -37,11 +37,11 @@ document
       });
       const data = await res.json();
       result.textContent = res.ok
-        ? `Đã tạo item #${data.id}.`
-        : `Lỗi ${res.status}: ${data.detail || "unknown"}`;
+        ? `Created item #${data.id}.`
+        : `Error ${res.status}: ${data.detail || "unknown"}`;
       if (res.ok) await refresh();
     } catch (e) {
-      result.textContent = `Không gọi được API: ${e.message}`;
+      result.textContent = `Could not call the API: ${e.message}`;
     }
   });
 
