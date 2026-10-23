@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
-"""Unit test cho evidence/bundle_tool.py (M5-A2).
+"""Unit tests for evidence/bundle_tool.py (M5-A2).
 
-Chạy từ gốc repo:
+Run from the repo root:
 
     python3 -m unittest discover -s evidence/tests -v
 
-hoặc trực tiếp:
+or directly:
 
     python3 evidence/tests/test_bundle_tool.py
 
-Fixture là một thư mục lần chạy gates TỐI THIỂU tự sinh trong thư
-mục tạm (mỗi gate 1–9 có đúng một record policy-decision hợp lệ theo
-schema M2 thật của repo; gate 10 chỉ có disabled-note.txt) — không
-phụ thuộc bất kỳ lần chạy gates đầy đủ nào. Các test chữ ký dùng
-cosign thật khi tìm thấy (PATH, COSIGN_BINARY, hoặc
-~/workspace/tools/cosign trên máy phát triển); không có cosign thì
-nhóm test đó tự bỏ qua kèm lý do.
+Fixture is a MINIMAL gate-run directory generated in a temp dir
+(gates 1-9 each get exactly one policy-decision record valid against
+the repo's real M2 schema; gate 10 only has disabled-note.txt) - it
+does not depend on any full gate run. Signature tests use a real
+cosign when found (PATH, COSIGN_BINARY, or ~/workspace/tools/cosign
+on the dev machine); without cosign that test group skips itself.
 """
 
 import hashlib
@@ -64,9 +63,9 @@ def make_record(gate_no, **overrides):
 
 
 def build_run_dir(root: Path, bad_gate=None) -> Path:
-    """Dựng lần chạy tối thiểu: gate 1–9 một record hợp lệ mỗi gate,
-    gate 10 disabled. bad_gate: record của gate đó bị bỏ trường
-    bắt buộc 'timestamp' để sai schema."""
+    """Build a minimal run: gates 1-9 one valid record each, gate 10
+    disabled. bad_gate: that gate's record drops the required
+    'timestamp' field so it fails the schema."""
     run_dir = root / "run-fixture"
     run_dir.mkdir(parents=True)
     for g in range(1, 11):
@@ -74,7 +73,7 @@ def build_run_dir(root: Path, bad_gate=None) -> Path:
         gdir.mkdir()
         if g == 10:
             (gdir / "disabled-note.txt").write_text(
-                "gate 10 tắt theo thiết kế pha 1\n", encoding="utf-8")
+                "gate 10 disabled by phase 1 design\n", encoding="utf-8")
             continue
         rec = make_record(g)
         if bad_gate == g:
@@ -166,17 +165,17 @@ class CollectVerifyTests(unittest.TestCase):
         record = (tampered / "records" / "gate-01-fixture"
                   / "policy-decision-fixture.json")
         data = bytearray(record.read_bytes())
-        idx = data.index(b"2026")  # đổi 1 byte trong timestamp
+        idx = data.index(b"2026")  # change 1 byte in the timestamp
         data[idx] = ord("9")
         record.write_bytes(bytes(data))
         rc, out = run_verify(tampered)
         self.assertEqual(rc, 1, out)
-        self.assertIn("hash không khớp", out)
+        self.assertIn("hash mismatch", out)
 
 
 @unittest.skipUnless(COSIGN and SIGNING_CONFIG.is_file(),
-                     "không tìm thấy cosign hoặc signing-config "
-                     "offline để chạy test chữ ký")
+                     "cosign or the offline signing-config "
+                     "not found for signature tests")
 class SignatureTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="bundle-sign-test-"))
@@ -201,19 +200,19 @@ class SignatureTests(unittest.TestCase):
         self.assertEqual(
             manifest["signature"]["public_key_sha256"],
             sha256_of(bundle / "cosign.pub"))
-        # Khoá riêng không bao giờ có mặt trong bundle.
+        # The private key must never appear in a bundle.
         self.assertEqual(list(bundle.rglob("*.key")), [])
         rc, out = run_verify(bundle, cosign=COSIGN)
         self.assertEqual(rc, 0, out)
-        self.assertIn("chữ ký Cosign trên bundle.sha256: HỢP LỆ", out)
+        self.assertIn("Cosign signature on bundle.sha256: VALID", out)
 
     def test_signed_bundle_consistent_tamper_fails_signature(self):
         bundle = self.collect_signed("bundle-signed")
         tampered = self.tmp / "bundle-tampered"
         shutil.copytree(bundle, tampered)
-        # Sửa record RỒI tính lại hash một cách nhất quán ở manifest
-        # + bundle.sha256 — lớp hash sẽ khớp hoàn toàn; chỉ chữ ký
-        # trên bundle.sha256 gốc mới bắt được.
+        # Edit the record THEN recompute hashes consistently in the
+        # manifest + bundle.sha256 - the hash layer will match fully;
+        # only the signature on the original bundle.sha256 catches it.
         record_rel = ("records/gate-01-fixture/"
                       "policy-decision-fixture.json")
         record = tampered / record_rel
@@ -241,7 +240,7 @@ class SignatureTests(unittest.TestCase):
             encoding="utf-8")
         rc, out = run_verify(tampered, cosign=COSIGN)
         self.assertEqual(rc, 1, out)
-        self.assertIn("chữ ký Cosign KHÔNG hợp lệ", out)
+        self.assertIn("Cosign signature INVALID", out)
 
     def test_swapped_signature_from_other_bundle_fails(self):
         bundle_a = self.collect_signed("bundle-a")
@@ -250,7 +249,7 @@ class SignatureTests(unittest.TestCase):
                      bundle_a / "bundle.sigstore.json")
         rc, out = run_verify(bundle_a, cosign=COSIGN)
         self.assertEqual(rc, 1, out)
-        self.assertIn("chữ ký Cosign KHÔNG hợp lệ", out)
+        self.assertIn("Cosign signature INVALID", out)
 
 
 if __name__ == "__main__":
