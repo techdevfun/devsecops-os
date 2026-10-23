@@ -1,46 +1,51 @@
-# Chính sách bảo mật
+# Security policy
 
-## Báo cáo lỗ hổng
+## Reporting a vulnerability
 
-Nếu bạn phát hiện lỗ hổng bảo mật trong devsecops-os (policy, gate,
-evidence tooling hoặc template), vui lòng **không** mở issue công khai.
-Hãy báo cáo riêng qua kênh liên hệ của chủ sở hữu dự án (trang
-techdev.fun) kèm:
+If you find a security vulnerability in devsecops-os (policy, gate,
+evidence tooling or template), please do **not** open a public issue.
+Report it privately through the project owner's contact channel (the
+techdev.fun site), together with:
 
-- mô tả lỗ hổng và thành phần bị ảnh hưởng (file/gate/policy),
-- các bước tái hiện tối thiểu,
-- đánh giá tác động theo góc nhìn của bạn.
+- a description of the vulnerability and the affected component (file/gate/policy),
+- the minimal steps to reproduce it,
+- your assessment of the impact.
 
-Dự án sẽ xác nhận đã nhận báo cáo và phối hợp khắc phục trước khi công
-bố chi tiết. Đây là dự án mã nguồn mở do một nhóm nhỏ duy trì — thời
-gian phản hồi là nỗ lực tốt nhất (best effort), không phải SLA.
+The project will acknowledge receipt of the report and coordinate a
+fix before publishing details. This is an open-source project
+maintained by a small team — response times are best effort, not an
+SLA.
 
-## Xử lý sự cố: nghi ngờ lộ secret hoặc khoá ký
+## Incident handling: suspected exposure of a secret or signing key
 
-Nếu bạn phát hiện (hoặc nghi ngờ) một secret, token hay khoá riêng
-bị lộ trong repo này, trong một bundle bằng chứng, hoặc qua một lần
-chạy cổng:
+If you discover (or suspect) that a secret, token or private key has
+been exposed in this repo, in an evidence bundle, or through a gate
+run:
 
-1. **Thu hồi/xoay vòng ngay lập tức** — coi như đã bị lộ: token thì
-   revoke và cấp mới, khoá ký Cosign thì sinh cặp khoá mới và tuyên
-   bố fingerprint cũ không còn hiệu lực. Đừng chờ xác minh "đã bị
-   khai thác hay chưa" mới thu hồi.
-2. **Xoá khỏi cây hiện tại** và ghi rõ trong `CHANGELOG.md` (mục
-   Bảo mật) rằng đã có sự cố + đã xoay vòng — nhưng hiểu rằng xoá
-   file **không** xoá được lịch sử git hay các bundle đã phát tán;
-   bước 1 mới là biện pháp hiệu lực.
-3. **Thông báo cho người duy trì** qua kênh riêng ở trên, kèm: loại
-   secret, vị trí phát hiện (file/bundle/lần chạy), thời điểm nghi
-   lộ. Không gửi chính giá trị secret trong thông báo.
-4. Với bundle bằng chứng đã ký chứa dữ liệu nhạy cảm: phát hành lại
-   bundle đã làm sạch, ký bằng khoá mới, và ghi fingerprint khoá bị
-   thu hồi vào file này để bên kiểm chứng loại bỏ.
+1. **Revoke/rotate immediately** — treat it as already exposed: for a
+   token, revoke it and issue a new one; for a Cosign signing key,
+   generate a new key pair and declare the old fingerprint no longer
+   valid. Do not wait to verify "whether it has been exploited yet"
+   before revoking.
+2. **Remove it from the current tree** and state clearly in
+   `CHANGELOG.md` (Security section) that there was an incident + a
+   rotation — but understand that deleting a file does **not** delete
+   git history or bundles that have already been distributed; step 1
+   is the effective measure.
+3. **Notify the maintainers** through the private channel above,
+   together with: the type of secret, where it was found
+   (file/bundle/run), and the suspected time of exposure. Do not send
+   the secret value itself in the notification.
+4. For a signed evidence bundle containing sensitive data: re-issue a
+   cleaned bundle, sign it with the new key, and record the revoked
+   key's fingerprint in this file so verifiers can exclude it.
 
-## Phạm vi
+## Scope
 
-- Các secret xuất hiện trong `examples/payments-sample/planted/` là
-  **giá trị giả được cài có chủ đích** để kiểm chứng gate quét secret —
-  không phải rò rỉ thật; xin đừng báo cáo chúng như sự cố.
-- Khoá Cosign dùng trong các lần chạy kiểm chứng cục bộ là khoá tạm
-  sinh theo từng lần chạy trong thư mục đầu ra (đã gitignore), không
-  dùng cho bất kỳ artefact phát hành nào.
+- The secrets appearing in `examples/payments-sample/planted/` are
+  **fake values deliberately planted** to verify the secret-scanning
+  gate — they are not real leaks; please do not report them as
+  incidents.
+- The Cosign keys used in local verification runs are temporary keys
+  generated per run in the output directory (already gitignored), and
+  are not used for any release artefact.
