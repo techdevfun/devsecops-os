@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Sinh input JSON chuẩn hoá cho các policy từ file THẬT của workload
-payments-sample (cả hai biến thể clean/ và planted/).
+"""Generate normalised JSON inputs for the policies from the REAL
+files of the payments-sample workload (both the clean/ and planted/
+variants).
 
-Đây là bộ trích xuất tham chiếu của pack v1: ở M3, lớp này được thay/bổ
-sung bằng đầu ra thật của Terraform plan JSON, gitleaks, osv-scanner,
-Syft và Trivy — nhưng định dạng input của policy KHÔNG đổi.
+This is the reference extractor of pack v1: in M3 this layer is
+replaced/supplemented by the real output of Terraform plan JSON,
+gitleaks, osv-scanner, Syft and Trivy — but the policy input format
+does NOT change.
 
-Cách dùng:
-    python3 build_workload_fixtures.py [thư-mục-workload] [thư-mục-đầu-ra]
+Usage:
+    python3 build_workload_fixtures.py [workload-dir] [output-dir]
 
-Đầu ra (mỗi biến thể): tf.json, secrets.json, deps.json, docker.json
+Output (per variant): tf.json, secrets.json, deps.json, docker.json
 """
 import json
 import re
@@ -29,17 +31,17 @@ KEV_REFERENCE = [{
     "affected": ">=0.8.3,<1.0.1", "fixed": "1.0.1",
     "in_kev": True, "epss": 0.42,
     "_source": "PLANTED.md (CISA KEV catalog 2026.10.21 + GHSA-86qp-5c8j-p5mr, "
-               "đối chiếu 2026-10-22). Ở production, dữ liệu này do gate 3/8 "
-               "nạp từ OSV + feed CISA KEV/EPSS tại thời điểm chạy.",
+               "checked 2026-10-22). In production this data is loaded by "
+               "gates 3/8 from OSV + the CISA KEV/EPSS feeds at run time.",
 }]
 
 EOL_IMAGES = [
     {"image": "python", "tag_prefix": "3.10", "eol": "2026-04-01",
-     "note": "CPython 3.10 EOL thang 4/2026"},
+     "note": "CPython 3.10 EOL April 2026"},
     {"image": "python", "tag_contains": "bullseye", "eol": "2024-08-01",
-     "note": "Debian bullseye het ho tro thuong"},
+     "note": "Debian bullseye out of regular support"},
     {"image": "python", "tag_prefix": "3.11", "eol": "2027-04-01",
-     "note": "CPython 3.11 EOL thang 4/2027 (du phong)"},
+     "note": "CPython 3.11 EOL April 2027 (forecast)"},
 ]
 
 
@@ -67,7 +69,7 @@ def extract_tf(variant_dir: Path) -> dict:
     app_port = parse_app_port(vars_tf)
 
     sgs = []
-    # Tìm từng resource aws_security_group và các ingress block trong nó.
+    # Find each aws_security_group resource and the ingress blocks inside it.
     for m in re.finditer(
             r'resource\s+"aws_security_group"\s+"(\w+)"\s*\{(.*?)\n\}',
             tf, re.S):
@@ -90,12 +92,13 @@ def extract_tf(variant_dir: Path) -> dict:
         sgs.append({"name": f"aws_security_group.{name}",
                     "public_web": False, "ingress": ingress})
 
-    # Rule ingress dạng tài nguyên riêng (aws_vpc_security_group_
-    # ingress_rule — dạng chuẩn sau refactor M5): gộp vào ingress của
-    # SG đích, giữ nguyên định dạng fixture. cidr_ipv4 = each.value
-    # (for_each trên biến) không phân giải được ở lớp regex này -> để
-    # rỗng, đúng như cách biến cidr_blocks tham chiếu var được xử lý
-    # trước refactor.
+    # Standalone ingress-rule resources (aws_vpc_security_group_
+    # ingress_rule — the standard form after the M5 refactor): merge
+    # into the ingress of the target SG, keeping the fixture format
+    # unchanged. cidr_ipv4 = each.value (for_each over a variable)
+    # cannot be resolved at this regex layer -> leave it empty,
+    # exactly how cidr_blocks referencing a var was handled before
+    # the refactor.
     by_sg_name = {sg["name"]: sg for sg in sgs}
     for rm in re.finditer(
             r'resource\s+"aws_vpc_security_group_ingress_rule"\s+"(\w+)"'
@@ -135,8 +138,8 @@ def extract_tf(variant_dir: Path) -> dict:
         "address": "aws_s3_bucket.artefacts", "type": "aws_s3_bucket",
         "encryption_enabled": has_sse, "public_access_blocked": bool(pab),
     }]
-    # Một file tf.json dùng chung: network_exposure đọc security_groups,
-    # storage_encryption đọc storage, iam_least_privilege đọc từ plan ở M3.
+    # One shared tf.json file: network_exposure reads security_groups,
+    # storage_encryption reads storage, iam_least_privilege reads from the plan in M3.
     return {"security_groups": sgs, "storage": storage}
 
 
