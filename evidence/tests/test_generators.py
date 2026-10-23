@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Unit test cho evidence/generators.py (M5-A3) + các mở rộng
-collector của bundle_tool (supplementary-records + ci-log).
+"""Unit tests for evidence/generators.py (M5-A3) + the bundle_tool
+collector extensions (supplementary-records + ci-log).
 
-Chạy từ gốc repo:
+Run from the repo root:
 
     python3 -m unittest discover -s evidence/tests -v
 
-Fixture tự sinh trong thư mục tạm: lần chạy gates tối thiểu (mỗi
-gate một policy-decision hợp lệ), workload IaC tối thiểu viết tay
-cho drift, workflow YAML tối thiểu cho access-review. Các test cần
-binary ngoài (opa/conftest) tự bỏ qua khi không tìm thấy — binary
-được tìm ở ~/workspace/tools trên máy phát triển.
+Fixtures are generated in a temp dir: a minimal gate run (one valid
+policy-decision per gate), a hand-written minimal IaC workload for
+drift, minimal workflow YAML for access-review. Tests needing an
+external binary (opa/conftest) skip themselves when it is not found -
+binaries are looked up in ~/workspace/tools on the dev machine.
 """
 
 import hashlib
@@ -47,13 +47,13 @@ def make_decision(gate, policy_id, decision="pass"):
     return {
         "evidence_type": "policy-decision", "policy_id": policy_id,
         "engine": "opa", "gate": gate, "decision": decision,
-        "violations": [] if decision == "pass" else ["vi phạm mẫu"],
+        "violations": [] if decision == "pass" else ["sample violation"],
         "commit_sha": COMMIT, "timestamp": "2026-10-22T00:00:00Z",
     }
 
 
 def build_run_with_decisions(root: Path) -> Path:
-    """Lần chạy tối thiểu có đủ quyết định cho change-record:
+    """Minimal run with enough decisions for change-record:
     secret_findings (gate 1), SARIF gate 2, 3 policy IaC (gate 4),
     dependency_kev (gate 8)."""
     run_dir = root / "local-clean"
@@ -125,7 +125,7 @@ class ChangeRecordTests(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp(prefix="gen-cr-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
 
-    @unittest.skipUnless(OPA, "không tìm thấy opa tại ~/workspace/tools")
+    @unittest.skipUnless(OPA, "opa not found in ~/workspace/tools")
     def test_change_record_from_run_decisions(self):
         run_dir = build_run_with_decisions(self.tmp)
         out = self.tmp / "supp"
@@ -139,28 +139,28 @@ class ChangeRecordTests(unittest.TestCase):
         self.assertEqual(rec["commit_sha"], COMMIT)
         dec = res["decision"]
         self.assertEqual(schema_errors(dec), [])
-        # Không có phê duyệt PR thật ở lần chạy cục bộ -> policy DENY
-        # đúng một vi phạm (phê duyệt). Đây là hành vi đúng thiết kế:
-        # bộ sinh ghi giá trị thật, policy tự kết luận.
+        # No real PR approval in a local run -> the policy DENIES with
+        # exactly one violation (approval). This is by design: the
+        # generator records the real value, the policy concludes.
         self.assertEqual(dec["decision"], "deny")
         self.assertEqual(len(dec["violations"]), 1)
-        self.assertIn("phe duyet", dec["violations"][0])
+        self.assertIn("has no PR approval", dec["violations"][0])
 
-    @unittest.skipUnless(OPA, "không tìm thấy opa tại ~/workspace/tools")
+    @unittest.skipUnless(OPA, "opa not found in ~/workspace/tools")
     def test_change_record_reflects_denied_gate(self):
         run_dir = build_run_with_decisions(self.tmp)
-        # Lật quyết định secret thành deny ngay trên đĩa rồi sinh lại.
+        # Flip the secret decision to deny on disk, then regenerate.
         p = (run_dir / "gate-01-fixture"
              / "policy-decision-secret_findings.json")
         data = json.loads(p.read_text(encoding="utf-8"))
         data["decision"] = "deny"
-        data["violations"] = ["có finding secret"]
+        data["violations"] = ["secret finding present"]
         p.write_text(json.dumps(data), encoding="utf-8")
         res = generators.gen_change_record(run_dir, self.tmp / "s2", OPA)
         self.assertEqual(res["record"]["gate_results"]["secret"], "deny")
 
 
-@unittest.skipUnless(CONFTEST, "không tìm thấy conftest")
+@unittest.skipUnless(CONFTEST, "conftest not found")
 class DriftTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="gen-drift-"))
@@ -169,7 +169,7 @@ class DriftTests(unittest.TestCase):
         self.baseline = self.tmp / "baseline.json"
         generators.write_baseline(self.infra, self.baseline, CONFTEST)
 
-    @unittest.skipUnless(OPA, "không tìm thấy opa tại ~/workspace/tools")
+    @unittest.skipUnless(OPA, "opa not found in ~/workspace/tools")
     def test_no_drift_against_own_baseline(self):
         res = generators.gen_drift_report(self.infra, self.baseline,
                                           self.tmp / "out", OPA,
@@ -178,7 +178,7 @@ class DriftTests(unittest.TestCase):
         self.assertEqual(schema_errors(res["record"]), [])
         self.assertEqual(res["decision"]["decision"], "pass")
 
-    @unittest.skipUnless(OPA, "không tìm thấy opa tại ~/workspace/tools")
+    @unittest.skipUnless(OPA, "opa not found in ~/workspace/tools")
     def test_world_open_rule_is_detected_as_network_drift(self):
         infra2 = build_infra(self.tmp / "wl2", extra=WORLD_OPEN_RULE)
         res = generators.gen_drift_report(infra2, self.baseline,
@@ -193,8 +193,8 @@ class DriftTests(unittest.TestCase):
                          ["0.0.0.0/0"])
 
     def test_parse_infra_matches_gate4_adapter_cli(self):
-        # Đầu ra parse của generators phải khớp byte-for-byte về mặt
-        # dữ liệu với adapter CLI của gate 4 trên workload thật.
+        # The generators' parse output must match the gate 4 adapter
+        # CLI's output data byte-for-byte on a real workload.
         import subprocess
         real_infra = (REPO_ROOT / "examples" / "payments-sample"
                       / "clean" / "infra")
@@ -274,7 +274,7 @@ class AccessReviewTests(unittest.TestCase):
             rec["summary"]["workflows_scanned"], 12)
 
 
-@unittest.skipUnless(OPA and CONFTEST, "cần opa + conftest")
+@unittest.skipUnless(OPA and CONFTEST, "needs opa + conftest")
 class ConfigBaselineTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="gen-cb-"))
@@ -305,7 +305,7 @@ class ConfigBaselineTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Mở rộng collector: supplementary-records + ci-log (bundle_tool M5-A3)
+# Collector extensions: supplementary-records + ci-log (bundle_tool M5-A3)
 # ---------------------------------------------------------------------------
 
 def build_minimal_run(root: Path) -> Path:
@@ -315,7 +315,7 @@ def build_minimal_run(root: Path) -> Path:
         gdir.mkdir(parents=True)
         if g == 10:
             (gdir / "disabled-note.txt").write_text(
-                "gate 10 tắt\n", encoding="utf-8")
+                "gate 10 disabled\n", encoding="utf-8")
             continue
         rec = {
             "evidence_type": "policy-decision",
@@ -392,7 +392,7 @@ class CollectorExtensionTests(unittest.TestCase):
     def test_ci_log_record_emitted_and_cross_checked(self):
         run_dir = build_minimal_run(self.tmp)
         (run_dir / "gate-01-fixture" / "tool.log").write_text(
-            "dòng log mẫu của gate 1\n", encoding="utf-8")
+            "sample log line from gate 1\n", encoding="utf-8")
         bundle = self.tmp / "bundle"
         rc, _, err = collect(run_dir, bundle)
         self.assertEqual(rc, 0, err)
@@ -407,7 +407,7 @@ class CollectorExtensionTests(unittest.TestCase):
         self.assertEqual(ci_rec["sha256"], f"sha256:{digest}")
         rc, out = verify(bundle)
         self.assertEqual(rc, 0, out)
-        self.assertIn("ci-log: hash gói log", out)
+        self.assertIn("ci-log: log archive hash", out)
         row03 = [t for t in json.loads(
             (bundle / "summary.json").read_text(encoding="utf-8"))
             ["traceability"] if t["row"] == "row-03"][0]
@@ -416,15 +416,15 @@ class CollectorExtensionTests(unittest.TestCase):
     def test_ci_log_cross_check_catches_inconsistent_record(self):
         run_dir = build_minimal_run(self.tmp)
         (run_dir / "gate-01-fixture" / "tool.log").write_text(
-            "log mẫu\n", encoding="utf-8")
+            "sample log\n", encoding="utf-8")
         bundle = self.tmp / "bundle"
         rc, _, err = collect(run_dir, bundle)
         self.assertEqual(rc, 0, err)
         tampered = self.tmp / "bundle-t"
         shutil.copytree(bundle, tampered)
-        # Sửa hash khai trong record ci-log RỒI tính lại nhất quán
-        # manifest + bundle.sha256 — lớp hash khớp hết, chỉ đối
-        # chiếu chéo record <-> artefact mới bắt được.
+        # Edit the hash declared in the ci-log record THEN recompute the
+        # manifest + bundle.sha256 consistently - the hash layer all
+        # matches; only the record <-> artefact cross-check catches it.
         relp = "records/collector/ci-log.record.json"
         rec_path = tampered / relp
         data = json.loads(rec_path.read_text(encoding="utf-8"))
@@ -456,7 +456,7 @@ class CollectorExtensionTests(unittest.TestCase):
             encoding="utf-8")
         rc, out = verify(tampered)
         self.assertEqual(rc, 1, out)
-        self.assertIn("không khớp SHA-256 thật", out)
+        self.assertIn("does not match the actual SHA-256", out)
 
 
 if __name__ == "__main__":
