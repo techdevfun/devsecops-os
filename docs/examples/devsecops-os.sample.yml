@@ -1,16 +1,16 @@
-# MẪU TĨNH (M1) — file cấu hình của hệ khi các mốc M2/M3 cài đặt.
-# Một file cấu hình duy nhất trong repo của tổ chức sử dụng: chọn policy
-# pack, chế độ từng gate, nơi lưu bằng chứng. Giá trị mặc định theo nguyên
-# tắc của blueprint: report-only khi mới lắp, chỉ chặn sau khi đã hiệu
-# chuẩn trên lịch sử của chính repo đó (backtest -> report-only -> enforce).
+# STATIC SAMPLE (M1) — the system's configuration file as installed at milestones M2/M3.
+# A single configuration file in the adopting organisation's repo: policy
+# pack selection, per-gate modes, evidence store location. Defaults follow
+# the blueprint principle: report-only on first install; blocking only after
+# calibration on that repo's own history (backtest -> report-only -> enforce).
 
 version: 1
 
 organization:
-  name: example-bank            # tên tổ chức (chỉ để ghi vào báo cáo bằng chứng)
-  config_repo: null             # repo cấu hình tập trung (pha 3), để trống ở pha 1
+  name: example-bank            # organisation name (recorded into evidence reports only)
+  config_repo: null             # central configuration repo (phase 3); leave empty in phase 1
 
-# Policy packs sẽ cài ở M2. Ánh xạ là THAM CHIẾU, không phải chứng nhận tuân thủ.
+# Policy packs are installed at M2. Mappings are REFERENCE mappings, not a compliance certification.
 policy_packs:
   - iso-27001-2022
   - nist-csf-ssdf
@@ -21,7 +21,7 @@ policy_packs:
 
 gates:
   secret-scanning:
-    mode: block                 # gate duy nhất mặc định chặn ngay (nhiễu thấp)
+    mode: block                 # the only gate that blocks immediately by default (low noise)
   sast:
     mode: report-only
   sca:
@@ -31,25 +31,25 @@ gates:
   container:
     mode: report-only
   sbom-attestation:
-    mode: report-only           # thiếu SBOM/attestation: cảnh báo ở pha 1
+    mode: report-only           # missing SBOM/attestation: warning in phase 1
   license:
     mode: report-only
   kev-epss:
     mode: report-only
-    kev_block: true             # CVE thuộc CISA KEV: ứng viên chặn đầu tiên khi hiệu chuẩn xong
+    kev_block: true             # a CVE in CISA KEV: first blocking candidate once calibration is done
     epss_threshold: 0.5
   pipeline-hygiene:
-    mode: block                 # action bên thứ ba chưa ghim full SHA -> chặn
-  ai-pr-review:                 # flagship #1 — MẶC ĐỊNH TẮT ở pha 1
-    enabled: false              # chỉ bật khi flagship #1 qua cổng publish riêng của nó
+    mode: block                 # third-party action not pinned to a full SHA -> block
+  ai-pr-review:                 # flagship #1 — OFF BY DEFAULT in phase 1
+    enabled: false              # enabled only once flagship #1 passes its own release gate
     mode: report-only
 
 evidence:
-  store: "./.devsecops-os/evidence"   # trong hạ tầng của tổ chức; có thể trỏ S3/object storage
+  store: "./.devsecops-os/evidence"   # in the organisation's infrastructure; may point to S3/object storage
   retention_days: 400
   bundle_manifest: sha256
 
 notifications:
-  # Dùng cơ chế sẵn có của GitHub (check run, PR comment). Webhook là tuỳ
-  # chọn của tổ chức, credential do tổ chức tự quản lý qua secrets của họ.
-  webhook_url_secret: null      # tên secret chứa webhook Slack/Teams/Telegram, để trống = tắt
+  # Uses GitHub's built-in mechanisms (check runs, PR comments). A webhook is
+  # the organisation's option; the credential is managed by the organisation in its own secrets.
+  webhook_url_secret: null      # name of the secret holding the Slack/Teams/Telegram webhook; empty = off
