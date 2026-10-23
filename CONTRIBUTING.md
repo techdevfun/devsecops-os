@@ -72,9 +72,10 @@ python3 -m unittest discover -s gates/local/tests
 
 ## Style
 
-- Documentation: Vietnamese with diacritics for internal operational
-  documents, English for READMEs/schemas/technical names; stay
-  consistent with the neighbouring file.
+- Documentation: English for everything in this project — internal
+  operational documents, READMEs, schemas and technical names alike
+  (the project's English-for-all rule); stay consistent with the
+  neighbouring file.
 - Python code in `evidence/` and `gates/local/adapters/` uses only
   the standard library (except adapters with a declared dependency,
   for example `workflow_input.py` uses PyYAML) — so the tools run on

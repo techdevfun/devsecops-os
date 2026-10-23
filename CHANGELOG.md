@@ -2,10 +2,22 @@
 
 All notable changes to devsecops-os are recorded here. The format
 follows [Keep a Changelog](https://keepachangelog.com/), and versions
-follow [SemVer](https://semver.org/). The project has **not yet been
-publicly released** — the entries below are local completion
-milestones for phase 1, serving the release dossier
-(`release/RELEASE-DOSSIER.md`).
+follow [SemVer](https://semver.org/). The project was **publicly
+released on 2026-10-23** — phase 1 is available as prerelease
+`v1.0.0-phase1` at
+[github.com/techdevfun/devsecops-os](https://github.com/techdevfun/devsecops-os).
+The milestone entries below record how phase 1 was built, serving
+the release dossier (`release/RELEASE-DOSSIER.md`).
+
+## [1.0.0-phase1] — 2026-10-23
+
+Phase 1 **publicly released**: the repository is public at
+[github.com/techdevfun/devsecops-os](https://github.com/techdevfun/devsecops-os),
+with the phase-1 tree published as prerelease `v1.0.0-phase1`.
+
+### Changed
+
+- Policy pack 1.1.0: all Rego deny messages translated to English; policy-decision evidence records now carry English violations text (decisions, violation counts and schemas unchanged). Evidence bundle tool 1.3.0: all bundle data text (manifest note, ci-log record fields, control-index completeness basis, summary.md) and collect/verify output translated to English. Demo re-recorded raw with fully English output; the previous Vietnamese-output capture was replaced, never edited.
 
 ## [Unreleased] — local completion round M5-A3 (2026-10-22)
 
