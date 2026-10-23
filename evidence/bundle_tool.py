@@ -1,50 +1,54 @@
 #!/usr/bin/env python3
 """devsecops-os — evidence bundle tool (M4: evidence automation).
 
-Một công cụ, hai việc:
+One tool, two jobs:
 
-  collect   Thu thập toàn bộ evidence record từ một lần chạy gates
-            (thư mục `evidence/output/<lần chạy>/` theo hợp đồng M3),
-            kiểm tra từng record khớp schema bằng chứng của policy
-            pack v1 (M2), sinh báo cáo tổng hợp + bảng truy vết
-            framework -> policy -> gate -> bằng chứng, và đóng gói
-            thành một evidence bundle có manifest SHA-256. Tuỳ chọn
-            `--sign`: ký mật mã `bundle.sha256` bằng Cosign (khoá tạm
-            theo lần chạy, sinh ngoài cây và huỷ ngay sau khi ký —
-            xem mục ký ở evidence/README.md).
+  collect   Collect every evidence record from one gate run
+            (directory `evidence/output/<run>/` per the M3
+            contract), check each record against the evidence
+            schemas of policy pack v1 (M2), generate a summary
+            report + a framework -> policy -> gate -> evidence
+            traceability table, and package it all into an evidence
+            bundle with a SHA-256 manifest. Optional `--sign`:
+            cryptographically sign `bundle.sha256` with Cosign
+            (per-run ephemeral key, generated outside the tree and
+            destroyed right after signing - see the signing section
+            of evidence/README.md).
 
-  verify    Kiểm chứng độc lập một bundle đã đóng gói bằng MỘT lệnh:
-            đối chiếu mọi hash trong manifest + `bundle.sha256`
-            (tương thích `sha256sum -c`), kiểm tra lại tính khớp
-            schema của mọi record trong bundle, và — khi bundle có
-            khai báo chữ ký — kiểm chứng thêm chữ ký Cosign trên
-            `bundle.sha256` (thiếu/sai chữ ký là FAIL ồn ào).
+  verify    Independently verify a packaged bundle with ONE
+            command: check every hash in the manifest +
+            `bundle.sha256` (compatible with `sha256sum -c`),
+            re-check every record in the bundle against its schema,
+            and - when the bundle declares a signature - also verify
+            the Cosign signature on `bundle.sha256` (a missing/bad
+            signature is a loud FAIL).
 
-Từ M5-A3, collector còn: (a) quét thư mục `supplementary-records/`
-của lần chạy — nơi các bộ sinh bằng chứng quyết định/định kỳ
-(evidence/generators.py) ghi change-record, drift-report,
-access-review-report, config-baseline-report kèm policy-decision
-của chúng — và kiểm schema như mọi record khác; (b) tự phát hành
-record `ci-log`: đóng gói toàn bộ file log (.log) của lần chạy
-thành một artefact zip kèm SHA-256, để hàng A.8.15–A.8.16 của bản
-đồ pha 1 có bằng chứng thật thay vì "chưa có".
+Since M5-A3 the collector also: (a) scans the run's
+`supplementary-records/` directory - where the decision/periodic
+evidence generators (evidence/generators.py) write change-record,
+drift-report, access-review-report and config-baseline-report plus
+their policy-decisions - and schema-checks them like any other
+record; (b) issues a `ci-log` record itself: packages all of the
+run's log files (.log) into a zip artefact with a SHA-256, so
+phase-1 map rows A.8.15-A.8.16 have real evidence instead of "none".
 
-Chỉ dùng thư viện chuẩn của Python 3 — chạy được trên runner CI
-trắng mà không cần cài thêm gói. Nguyên tắc thừa hưởng từ blueprint:
-mọi thứ thiếu/sai đều phải BÁO ỒN ÀO (record sai schema bị nêu tên,
-gate thiếu bằng chứng bị gắn cờ), không bao giờ im lặng cho qua.
+Python 3 standard library only - runs on a bare CI runner with no
+extra packages. Principle inherited from the blueprint: anything
+missing/wrong must FAIL LOUDLY (a record failing its schema is
+named, a gate lacking evidence is flagged), never silently passed.
 
-Cách dùng:
+Usage:
   python3 evidence/bundle_tool.py collect evidence/output/local-clean
   python3 evidence/bundle_tool.py collect <run-dir> --out-dir <dir> \
       --run-id <id> [--allow-incomplete]
-  python3 evidence/verify_bundle.py <bundle-dir>     # == lệnh verify
+  python3 evidence/verify_bundle.py <bundle-dir>     # == the verify command
 
-Chế độ mặc định là NGHIÊM: có bất kỳ record nào sai schema, gate nào
-thiếu thư mục hoặc thiếu bằng chứng thì collect DỪNG và không sinh
-bundle. `--allow-incomplete` (dùng trong CI, chế độ chỉ-thu-thập):
-vẫn sinh bundle, record sai bị tách vào `rejected/` kèm lý do, và
-bundle bị gắn cờ `evidence-incomplete` trong manifest + báo cáo.
+The default mode is STRICT: if any record fails its schema, or any
+gate is missing a directory or evidence, collect STOPS and produces
+no bundle. `--allow-incomplete` (used in CI, collect-only mode):
+still produces a bundle, bad records are split into `rejected/`
+with reasons, and the bundle is flagged `evidence-incomplete` in
+the manifest + report.
 """
 
 from __future__ import annotations
@@ -64,7 +68,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 TOOL_NAME = "devsecops-os evidence bundle tool"
-TOOL_VERSION = "1.2.0"
+TOOL_VERSION = "1.3.0"
 BUNDLE_FORMAT = "devsecops-os/evidence-bundle/1"
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -74,28 +78,32 @@ MAPPING_FILE = SCRIPT_DIR / "mapping.phase1.json"
 DEFAULT_BUNDLES_DIR = SCRIPT_DIR / "bundles"
 
 GATE_DIR_RE = re.compile(r"^gate-(\d{2})-")
-EXPECTED_GATES = list(range(1, 11))  # blueprint mục 5: gate 1..10
+EXPECTED_GATES = list(range(1, 11))  # blueprint section 5: gates 1..10
 
-# Thư mục nguồn record phụ trợ trong một lần chạy: các bộ sinh bằng
-# chứng quyết định/định kỳ (evidence/generators.py) ghi record vào
-# đây; collector quét và kiểm schema như record của gate.
+# Supplementary record source directory within a run: the
+# decision/periodic evidence generators (evidence/generators.py)
+# write records here; the collector scans and schema-checks them
+# like gate records.
 SUPPLEMENTARY_DIR_NAME = "supplementary-records"
 SUPPLEMENTARY_LABEL = "supplementary"
 
-# Loại bằng chứng do chính collector phát hành (không đến từ gate):
-# chỉ mục kiểm soát cho CPS 234 và gói log CI cho ISO A.8.15–16.
+# Evidence types issued by the collector itself (not from a gate):
+# the control index for CPS 234 and the CI log package for ISO
+# A.8.15-16.
 COLLECTOR_TYPES = ("control-evidence-index", "ci-log")
 CI_LOG_BUNDLE_PATH = "records/collector/ci-log.record.json"
 CI_LOG_ARTIFACT_PATH = "artifacts/ci-logs/run-logs.zip"
 
-# Không bao giờ đưa khoá riêng vào bundle — dù nó nằm ngay trong thư
-# mục đầu ra của gate (gate 6 sinh cosign.key tạm khi chạy cục bộ).
+# Never put a private key in a bundle - even if it sits right in a
+# gate's output directory (gate 6 generates a temporary cosign.key
+# on local runs).
 PRIVATE_KEY_SUFFIXES = (".key", ".pem")
 
-# Ký bundle (M5-A2): chữ ký Cosign nằm trên chính `bundle.sha256` —
-# file bao phủ mọi file còn lại kể cả manifest.json. Hai file chữ ký
-# vì thế CỐ Ý đứng ngoài manifest và ngoài bundle.sha256 (chúng chứng
-# thực bundle.sha256, không thể tự nằm trong đó).
+# Bundle signing (M5-A2): the Cosign signature is over `bundle.sha256`
+# itself - the file that covers every other file including
+# manifest.json. The two signature files therefore INTENTIONALLY
+# stand outside the manifest and outside bundle.sha256 (they
+# authenticate bundle.sha256; they cannot be inside it).
 SIG_BUNDLE_NAME = "bundle.sigstore.json"
 SIG_PUBKEY_NAME = "cosign.pub"
 SIGNATURE_FILES = (SIG_BUNDLE_NAME, SIG_PUBKEY_NAME)
@@ -104,7 +112,7 @@ DEFAULT_SIGNING_CONFIG = (REPO_ROOT / "gates" / "local"
 
 
 # ---------------------------------------------------------------------------
-# Tiện ích chung
+# Shared utilities
 # ---------------------------------------------------------------------------
 
 def sha256_file(path: Path) -> str:
@@ -130,19 +138,20 @@ def load_json(path: Path):
 
 
 # ---------------------------------------------------------------------------
-# Ký mật mã cho bundle (M5-A2) — Cosign sign-blob trên bundle.sha256.
-# Cùng mẫu với gate 6: khoá cục bộ TẠM theo lần chạy, signing-config
-# offline (không Rekor), verify bằng --insecure-ignore-tlog. Khác
-# biệt bắt buộc so với gate 6: khoá sinh trong thư mục tạm NGOÀI cây
-# và bị huỷ ngay sau khi ký — khoá riêng không bao giờ vào bundle và
-# không nằm lại trong cây (bài học quét rủi ro M5-A). Giới hạn trung
-# thực của chữ ký cục bộ so với keyless OIDC trên CI: xem README.
+# Cryptographic bundle signing (M5-A2) - Cosign sign-blob over
+# bundle.sha256. Same pattern as gate 6: a TEMPORARY per-run local
+# key, offline signing-config (no Rekor), verify with
+# --insecure-ignore-tlog. Mandatory difference from gate 6: the key
+# is generated in a temp directory OUTSIDE the tree and destroyed
+# right after signing - the private key never enters the bundle and
+# never remains in the tree (M5-A risk-scan lesson). Honest limits
+# of local signatures vs keyless OIDC on CI: see the README.
 # ---------------------------------------------------------------------------
 
 def find_cosign(explicit=None):
-    """Tìm cosign: --cosign > biến môi trường COSIGN_BINARY > PATH.
-    Giá trị explicit không tồn tại = lỗi cấu hình, không âm thầm bỏ
-    qua (trả None để nơi gọi FAIL ồn ào)."""
+    """Find cosign: --cosign > COSIGN_BINARY env var > PATH. An explicit
+    value that does not exist is a configuration error, never
+    silently skipped (returns None so the caller FAILS loudly)."""
     if explicit:
         return explicit if Path(explicit).is_file() else None
     env_bin = os.environ.get("COSIGN_BINARY")
@@ -158,18 +167,18 @@ def _run_cosign(args, cwd, what):
                           text=True, timeout=180)
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip()
-        raise RuntimeError(f"cosign {what} thất bại: {detail[:400]}")
+        raise RuntimeError(f"cosign {what} failed: {detail[:400]}")
     return proc
 
 
 def generate_signing_keypair(cosign, workdir: Path) -> Path:
-    """Sinh cặp khoá tạm trong workdir; trả về đường dẫn cosign.pub."""
+    """Generate a temporary key pair in workdir; return the cosign.pub path."""
     _run_cosign([cosign, "generate-key-pair"], workdir,
                 "generate-key-pair")
     pub_path = workdir / "cosign.pub"
     if not pub_path.is_file():
         raise RuntimeError(
-            "cosign generate-key-pair không sinh ra cosign.pub")
+            "cosign generate-key-pair did not produce cosign.pub")
     return pub_path
 
 
@@ -185,7 +194,7 @@ def cosign_sign_blob(cosign, key_path, target: Path, out_bundle: Path,
 
 def cosign_verify_blob(cosign, pub_path, sig_bundle: Path,
                        target: Path, cwd):
-    """Ném RuntimeError khi chữ ký không hợp lệ."""
+    """Raise RuntimeError when the signature is invalid."""
     args = [cosign, "verify-blob", "--key", str(pub_path),
             "--bundle", str(sig_bundle), "--insecure-ignore-tlog",
             str(target)]
@@ -200,11 +209,11 @@ def write_json(path: Path, data) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Bộ kiểm tra JSON Schema tối thiểu (tập con mà schema M2 thực dùng:
-# type / const / enum / required / properties / items /
-# additionalProperties). Schema M2 chỉ dùng type/const/required/
-# properties, nhưng verify phải bắt được đúng các lỗi đó một cách
-# độc lập — không phụ thuộc gói `jsonschema` trên runner.
+# Minimal JSON Schema checker (the subset the M2 schemas actually
+# use: type / const / enum / required / properties / items /
+# additionalProperties). The M2 schemas only use
+# type/const/required/properties, but verify must catch exactly
+# those errors independently - no `jsonschema` package on the runner.
 # ---------------------------------------------------------------------------
 
 _TYPE_CHECKS = {
@@ -220,16 +229,16 @@ _TYPE_CHECKS = {
 
 
 def validate(instance, schema, path="$"):
-    """Trả về danh sách lỗi (rỗng = hợp lệ)."""
+    """Return the list of errors (empty = valid)."""
     errors = []
     if not isinstance(schema, dict):
         return errors
     if "const" in schema and instance != schema["const"]:
         errors.append(
-            f"{path}: phải bằng hằng số {schema['const']!r}, "
-            f"thực tế {instance!r}")
+            f"{path}: must equal the constant {schema['const']!r}, "
+            f"actual {instance!r}")
     if "enum" in schema and instance not in schema["enum"]:
-        errors.append(f"{path}: {instance!r} không thuộc enum "
+        errors.append(f"{path}: {instance!r} is not in the enum "
                       f"{schema['enum']!r}")
     expected_type = schema.get("type")
     if expected_type is not None:
@@ -238,20 +247,20 @@ def validate(instance, schema, path="$"):
         if not any(_TYPE_CHECKS.get(t, lambda v: True)(instance)
                    for t in types):
             errors.append(
-                f"{path}: sai kiểu — kỳ vọng {'/'.join(types)}, "
-                f"thực tế {type(instance).__name__}")
-            return errors  # sai kiểu gốc thì không đào sâu thêm
+                f"{path}: wrong type - expected {'/'.join(types)}, "
+                f"actual {type(instance).__name__}")
+            return errors  # wrong root type: do not dig deeper
     if isinstance(instance, dict):
         for field in schema.get("required", []):
             if field not in instance:
-                errors.append(f"{path}: thiếu trường bắt buộc {field!r}")
+                errors.append(f"{path}: missing required field {field!r}")
         props = schema.get("properties", {})
         additional = schema.get("additionalProperties", True)
         for key, value in instance.items():
             if key in props:
                 errors.extend(validate(value, props[key], f"{path}.{key}"))
             elif additional is False:
-                errors.append(f"{path}: trường {key!r} không có trong schema")
+                errors.append(f"{path}: field {key!r} is not in the schema")
             elif isinstance(additional, dict):
                 errors.extend(validate(value, additional, f"{path}.{key}"))
     if isinstance(instance, list) and isinstance(schema.get("items"), dict):
@@ -261,7 +270,7 @@ def validate(instance, schema, path="$"):
 
 
 def load_schemas(schemas_dir: Path):
-    """Map evidence_type -> schema, theo tên file `<type>.schema.json`."""
+    """Map evidence_type -> schema, by file name `<type>.schema.json`."""
     schemas = {}
     for f in sorted(schemas_dir.glob("*.schema.json")):
         evidence_type = f.name[: -len(".schema.json")]
@@ -270,11 +279,11 @@ def load_schemas(schemas_dir: Path):
 
 
 def build_ci_log_archive(run_dir: Path, log_files):
-    """Đóng gói các file log của lần chạy thành một zip XÁC ĐỊNH
-    (deterministic): thứ tự tên cố định, mốc thời gian zip cố định
-    (1980-01-01) — cùng một tập log luôn cho cùng một SHA-256, để
-    record ci-log mang hash ổn định và verify đối chiếu được.
-    Trả về (bytes_của_zip, sha256_hex)."""
+    """Package the run's log files into a DETERMINISTIC zip: fixed name
+    order, fixed zip timestamp (1980-01-01) - the same log set always
+    yields the same SHA-256, so the ci-log record carries a stable
+    hash that verify can check against. Returns (zip_bytes,
+    sha256_hex)."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in log_files:
@@ -302,8 +311,9 @@ def discover_gate_dirs(run_dir: Path):
 
 
 def display_uri(uri: str) -> str:
-    """Rút gọn URI tuyệt đối kiểu cục bộ cho dễ đọc trong báo cáo;
-    giá trị gốc vẫn nằm nguyên trong record/SARIF của bundle."""
+    """Shorten a local-style absolute URI for readability in reports;
+    the original value remains untouched in the bundle's
+    records/SARIF."""
     marker = "/examples/"
     if marker in uri:
         return "examples/" + uri.split(marker, 1)[1]
@@ -311,8 +321,8 @@ def display_uri(uri: str) -> str:
 
 
 def extract_secret_findings(run_dir: Path, gate_dirs):
-    """Finding secret lấy từ artefact SARIF mà record của gate 1 trỏ
-    tới — dữ liệu thật trong lần chạy, không suy diễn."""
+    """Secret findings taken from the SARIF artefact that gate 1's
+    record points to - real data from the run, no inference."""
     findings = []
     gate1 = gate_dirs.get(1)
     if gate1 is None:
@@ -339,8 +349,8 @@ def extract_secret_findings(run_dir: Path, gate_dirs):
 
 
 def extract_vuln_summary(records):
-    """Tóm tắt lỗ hổng từ record vuln-risk-ranking (gate 8) — nguồn
-    quyết định chặn/issue của cả lần chạy."""
+    """Vulnerability summary from the vuln-risk-ranking record (gate 8)
+    - the source of the run's block/issue decisions."""
     for rec in records:
         if rec["data"].get("evidence_type") != "vuln-risk-ranking":
             continue
@@ -380,52 +390,52 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
             cosign: str | None = None,
             signing_config: str | None = None) -> int:
     if not run_dir.is_dir():
-        print(f"LỖI: thư mục lần chạy không tồn tại: {run_dir}",
+        print(f"ERROR: run directory does not exist: {run_dir}",
               file=sys.stderr)
         return 2
-    # Tiền điều kiện cho --sign: fail sớm và ồn ào, trước khi đóng gói.
+    # Preconditions for --sign: fail early and loudly, before packaging.
     cosign_bin = None
     if sign:
         cosign_bin = find_cosign(cosign)
         if not cosign_bin:
-            print("LỖI: --sign yêu cầu cosign nhưng không tìm thấy "
-                  "(truyền --cosign <đường dẫn> hoặc đặt biến môi "
-                  "trường COSIGN_BINARY)", file=sys.stderr)
+            print("ERROR: --sign requires cosign but it was not found "
+                  "(pass --cosign <path> or set the COSIGN_BINARY "
+                  "environment variable)", file=sys.stderr)
             return 2
         if signing_config:
             if not Path(signing_config).is_file():
-                print(f"LỖI: signing-config không tồn tại: "
+                print(f"ERROR: signing-config does not exist: "
                       f"{signing_config}", file=sys.stderr)
                 return 2
         elif DEFAULT_SIGNING_CONFIG.is_file():
             signing_config = str(DEFAULT_SIGNING_CONFIG)
         else:
-            print("LỖI: --sign cần signing-config offline (không tìm "
-                  f"thấy {DEFAULT_SIGNING_CONFIG}; truyền "
-                  "--signing-config <đường dẫn>) — không ký bằng cấu "
-                  "hình mặc định có thể đẩy lên Rekor công cộng",
+            print("ERROR: --sign needs an offline signing-config (not "
+                  f"found: {DEFAULT_SIGNING_CONFIG}; pass "
+                  "--signing-config <path>) - refusing to sign with "
+                  "a default config that could push to public Rekor",
                   file=sys.stderr)
             return 2
     run_id = run_id or run_dir.name
     schemas = load_schemas(DEFAULT_SCHEMAS_DIR)
     if not schemas:
-        print(f"LỖI: không tìm thấy schema M2 tại {DEFAULT_SCHEMAS_DIR}",
+        print(f"ERROR: no M2 schemas found at {DEFAULT_SCHEMAS_DIR}",
               file=sys.stderr)
         return 2
     mapping = load_json(MAPPING_FILE)
 
     gate_dirs = discover_gate_dirs(run_dir)
-    records = []        # record hợp lệ
-    rejected = []       # record sai schema / không đọc được — nêu tên
-    problems = []       # vấn đề khiến bundle không đầy đủ
-    artifacts = []      # file phụ trợ được đưa vào bundle
-    excluded = []       # file KHÔNG đưa vào bundle, kèm lý do
+    records = []        # valid records
+    rejected = []       # records failing schema / unreadable - named
+    problems = []       # problems that make the bundle incomplete
+    artifacts = []      # auxiliary files included in the bundle
+    excluded = []       # files NOT included in the bundle, with reasons
     commit_shas = set()
 
     def rel(p: Path) -> str:
         return p.relative_to(run_dir).as_posix()
 
-    # --- Quét từng gate -----------------------------------------------------
+    # --- Scan each gate -----------------------------------------------------
     gate_status = {}
     for gate_no in EXPECTED_GATES:
         gdir = gate_dirs.get(gate_no)
@@ -433,25 +443,25 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
         if gdir is None:
             gate_status[gate_no] = {
                 "gate": gate_no, "status": "absent", "records": [],
-                "decisions": [], "note": "thư mục gate không có trong "
-                                         "lần chạy này"}
-            problems.append(f"{label}: thiếu thư mục gate trong lần chạy")
+                "decisions": [], "note": "gate directory not present "
+                                         "in this run"}
+            problems.append(f"{label}: gate directory missing from the run")
             continue
         gate_records, gate_decisions = [], []
         disabled_note = None
         has_scan_error = (gdir / "scan-error.json").exists()
-        # URI artefact mà các record của gate này trỏ tới (để gom artefact)
+        # Artefact URIs this gate's records point to (to gather artefacts)
         referenced = set()
-        pending_json = []     # JSON không có evidence_type — quyết sau
-        pending_other = []    # file không phải JSON — quyết sau
+        pending_json = []     # JSON without evidence_type - decided later
+        pending_other = []    # non-JSON files - decided later
         for f in sorted(gdir.iterdir()):
             if f.is_dir():
                 n_files = sum(1 for _ in f.rglob("*") if _.is_file())
                 excluded.append({
-                    "path": rel(f) + "/", "category": "thư mục con của gate",
-                    "reason": f"{n_files} file trong thư mục con (vd sandbox "
-                              f"của công cụ) — không phải bằng chứng dạng "
-                              f"record, không đưa vào bundle"})
+                    "path": rel(f) + "/", "category": "gate subdirectory",
+                    "reason": f"{n_files} file(s) in a subdirectory (e.g. a "
+                              f"tool sandbox) - not record-form evidence, "
+                              f"not included in the bundle"})
                 continue
             name = f.name
             if name == "disabled-note.txt":
@@ -462,14 +472,14 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
                 continue
             if name.endswith(PRIVATE_KEY_SUFFIXES):
                 excluded.append({
-                    "path": rel(f), "category": "khoá riêng",
-                    "reason": "vật liệu khoá riêng — KHÔNG bao giờ đưa vào "
-                              "bundle bằng chứng"})
+                    "path": rel(f), "category": "private key",
+                    "reason": "private key material - NEVER included in "
+                              "an evidence bundle"})
                 continue
             if not name.endswith(".json"):
                 pending_other.append(f)
                 continue
-            # File JSON: ứng viên record?
+            # JSON file: a record candidate?
             try:
                 data = load_json(f)
             except Exception as exc:
@@ -477,21 +487,21 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
                         name.startswith("policy-decision-"):
                     rejected.append({
                         "source": rel(f), "gate": gate_no,
-                        "errors": [f"không đọc được JSON: {exc}"]})
+                        "errors": [f"could not read JSON: {exc}"]})
                 else:
                     excluded.append({
                         "path": rel(f),
-                        "category": "đầu ra thô của công cụ",
-                        "reason": f"JSON không đọc được ({exc}) và không "
-                                  f"phải file record"})
+                        "category": "raw tool output",
+                        "reason": f"JSON unreadable ({exc}) and not a "
+                                  f"record file"})
                 continue
             if isinstance(data, dict) and "evidence_type" in data:
                 etype = data.get("evidence_type")
                 if etype not in schemas:
                     rejected.append({
                         "source": rel(f), "gate": gate_no,
-                        "errors": [f"evidence_type {etype!r} không có "
-                                   f"schema trong pack M2"]})
+                        "errors": [f"evidence_type {etype!r} has no "
+                                   f"schema in the M2 pack"]})
                     continue
                 errs = validate(data, schemas[etype])
                 if errs:
@@ -521,13 +531,15 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
                     name.startswith("policy-decision-"):
                 rejected.append({
                     "source": rel(f), "gate": gate_no,
-                    "errors": ["file mang tên record nhưng không có trường "
-                               "evidence_type — không khớp hợp đồng M2"]})
+                    "errors": ["file is named like a record but has no "
+                               "evidence_type field - does not match the "
+                               "M2 contract"]})
                 continue
             pending_json.append(f)
-        # Lượt 2: khi tập `referenced` đã đầy đủ mới quyết định các file
-        # phụ trợ — artefact là file được record tham chiếu, đầu vào của
-        # policy, hoặc tài liệu SBOM/provenance đi kèm record.
+        # Pass 2: only once `referenced` is complete, decide the
+        # auxiliary files - an artefact is a file referenced by a
+        # record, a policy input, or an SBOM/provenance document
+        # accompanying a record.
         for f in pending_json:
             run_rel = rel(f)
             if run_rel in referenced or f.name.endswith(".input.json") \
@@ -538,9 +550,9 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
             else:
                 excluded.append({
                     "path": run_rel,
-                    "category": "đầu ra thô của công cụ",
-                    "reason": "JSON không có evidence_type và không được "
-                              "record nào tham chiếu"})
+                    "category": "raw tool output",
+                    "reason": "JSON has no evidence_type and is not "
+                              "referenced by any record"})
         for f in pending_other:
             run_rel = rel(f)
             if run_rel in referenced or f.name.endswith(".sarif") \
@@ -550,10 +562,10 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
             else:
                 excluded.append({
                     "path": run_rel,
-                    "category": "log/đầu ra thô của công cụ",
-                    "reason": "không phải record có schema và không được "
-                              "record nào tham chiếu"})
-        # Trạng thái gate
+                    "category": "log/raw tool output",
+                    "reason": "not a schema record and not referenced "
+                              "by any record"})
+        # Gate status
         if disabled_note is not None and not gate_records:
             status = "disabled"
             note = disabled_note.strip().splitlines()[0] \
@@ -562,28 +574,30 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
             status, note = "deny", ""
         elif has_scan_error:
             status = "scan-error"
-            note = "gate có scan-error.json — lần quét không hoàn tất"
-            problems.append(f"{label}: scan-error (quét không hoàn tất)")
+            note = "gate has scan-error.json - the scan did not complete"
+            problems.append(f"{label}: scan-error (scan did not complete)")
         elif gate_decisions:
             status, note = "pass", ""
         elif gate_records:
             status = "evidence-only"
-            note = "có record bằng chứng nhưng gate này không sinh " \
-                   "policy-decision (quyết định chặn nằm ở gate khác)"
+            note = "has evidence records but this gate produces no " \
+                   "policy-decision (the blocking decision lives at " \
+                   "another gate)"
         else:
             status = "no-evidence"
-            note = "gate không sinh record bằng chứng nào"
-            problems.append(f"{label}: không có record bằng chứng")
+            note = "gate produced no evidence records"
+            problems.append(f"{label}: no evidence records")
         gate_status[gate_no] = {
             "gate": gate_no, "status": status,
             "records": [r["bundle_path"] for r in gate_records],
             "decisions": gate_decisions, "note": note}
 
-    # --- Nguồn record phụ trợ: supplementary-records/ ------------------
-    # Các bộ sinh bằng chứng quyết định/định kỳ (evidence/generators.py)
-    # ghi record vào đây vì chúng không thuộc một gate CI nào. Kiểm
-    # schema đúng như record của gate; file JSON không có evidence_type
-    # trong thư mục này là đầu vào của policy (provenance) -> artefact.
+    # --- Supplementary record source: supplementary-records/ ---------
+    # The decision/periodic evidence generators
+    # (evidence/generators.py) write records here because they belong
+    # to no CI gate. Schema-check exactly like gate records; a JSON
+    # file without evidence_type in this directory is a policy input
+    # (provenance) -> artefact.
     supplementary_paths = []
     supp_dir = run_dir / SUPPLEMENTARY_DIR_NAME
     if supp_dir.is_dir():
@@ -594,8 +608,8 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
             if not f.name.endswith(".json"):
                 excluded.append({
                     "path": run_rel,
-                    "category": "đầu ra thô của bộ sinh bằng chứng",
-                    "reason": "file không phải JSON trong "
+                    "category": "raw evidence-generator output",
+                    "reason": "non-JSON file in "
                               "supplementary-records/"})
                 continue
             try:
@@ -603,15 +617,15 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
             except Exception as exc:
                 rejected.append({
                     "source": run_rel, "gate": SUPPLEMENTARY_LABEL,
-                    "errors": [f"không đọc được JSON: {exc}"]})
+                    "errors": [f"could not read JSON: {exc}"]})
                 continue
             if isinstance(data, dict) and "evidence_type" in data:
                 etype = data.get("evidence_type")
                 if etype not in schemas:
                     rejected.append({
                         "source": run_rel, "gate": SUPPLEMENTARY_LABEL,
-                        "errors": [f"evidence_type {etype!r} không có "
-                                   f"schema trong pack M2"]})
+                        "errors": [f"evidence_type {etype!r} has no "
+                                   f"schema in the M2 pack"]})
                     continue
                 errs = validate(data, schemas[etype])
                 if errs:
@@ -638,10 +652,11 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
                               "gate": SUPPLEMENTARY_LABEL,
                               "kind": "generator-input"})
 
-    # --- Kế hoạch ci-log (record do collector phát hành) ---------------
-    # Gom mọi file log của lần chạy (log của các gate trong thư mục
-    # gate-*) thành một artefact zip xác định kèm hash — bằng chứng
-    # cho hàng ISO A.8.15–A.8.16. Không có log thì không bịa record.
+    # --- ci-log plan (record issued by the collector) ----------------
+    # Gather every log file of the run (gate logs in the gate-*
+    # directories) into one deterministic zip artefact with a hash -
+    # evidence for ISO rows A.8.15-A.8.16. No logs, no fabricated
+    # record.
     run_date = None
     for rec in records:
         ts = rec["data"].get("timestamp")
@@ -665,47 +680,50 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
                 "artifact_uri": CI_LOG_ARTIFACT_PATH,
                 "sha256": f"sha256:{zip_sha}",
                 "sources": ["ci-log"],
-                "sources_note": "repo-audit-log không tồn tại ở lần "
-                                "chạy cục bộ (cây chưa phải git repo, "
-                                "chưa có GitHub repo) — nguồn duy nhất "
-                                "là log của các gate trong lần chạy",
+                "sources_note": "repo-audit-log does not exist in a "
+                                "local run (the tree is not yet a git "
+                                "repo, there is no GitHub repo yet) - "
+                                "the only source is the gates' logs "
+                                "from the run",
                 "log_files": [p.relative_to(run_dir).as_posix()
                               for p in log_files],
                 "log_file_count": len(log_files),
-                "archive_format": "zip xác định (deterministic): tên "
-                                  "file sắp xếp, mốc thời gian cố "
-                                  "định — cùng tập log cho cùng hash",
+                "archive_format": "deterministic zip: file names "
+                                  "sorted, fixed timestamp - the same "
+                                  "log set yields the same hash",
                 "generated_by": f"{TOOL_NAME} {TOOL_VERSION} "
-                                f"(M4 collector, phát hành tại M5-A3)",
+                                f"(M4 collector, issued at M5-A3)",
                 "run_id": run_id,
             },
         }
 
-    # Các thư mục ngoài gate-* ở gốc lần chạy (vd .feeds cache)
+    # Non-gate-* directories at the run root (e.g. the .feeds cache)
     for child in sorted(run_dir.iterdir()):
         if child.name == SUPPLEMENTARY_DIR_NAME:
-            continue  # đã quét ở trên như nguồn record phụ trợ
+            continue  # already scanned above as a supplementary record source
         if child.is_dir() and not GATE_DIR_RE.match(child.name):
             n_files = sum(1 for _ in child.rglob("*") if _.is_file())
             excluded.append({
-                "path": child.name + "/", "category": "dữ liệu phụ của lần chạy",
-                "reason": f"{n_files} file ngoài hợp đồng gate (vd cache "
-                          f"feed) — không đưa vào bundle"})
+                "path": child.name + "/", "category": "run auxiliary data",
+                "reason": f"{n_files} file(s) outside the gate contract "
+                          f"(e.g. a feed cache) - not included in the "
+                          f"bundle"})
 
     for rej in rejected:
         problems.append(
-            f"record sai schema: {rej['source']} — "
+            f"record failed schema: {rej['source']} - "
             + "; ".join(rej["errors"]))
 
-    # --- Truy vết mapping pha 1 --------------------------------------------
+    # --- Phase-1 mapping traceability --------------------------------------------
     type_to_records = {}
     for rec in records:
         type_to_records.setdefault(rec["evidence_type"], []).append(
             rec["bundle_path"])
     if ci_log_plan is not None:
-        # ci-log do collector phát hành (như control-evidence-index):
-        # ghi nhận hiện diện ngay từ lượt truy vết đầu để chỉ mục
-        # kiểm soát (sinh ngay sau) dẫn được tới file record này.
+        # ci-log is issued by the collector (like
+        # control-evidence-index): record its presence from the first
+        # traceability pass so the control index (generated right
+        # after) can point to this record file.
         type_to_records.setdefault("ci-log", []).append(
             CI_LOG_BUNDLE_PATH)
     traceability = []
@@ -733,7 +751,7 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
     completeness = round(full_rows / len(traceability), 4) \
         if traceability else 0.0
 
-    # --- Record chỉ mục bằng chứng do collector sinh (schema M2) ------------
+    # --- Collector-generated evidence index record (M2 schema) ---------
     period = run_date
     index_controls = {}
     for t in traceability:
@@ -749,19 +767,20 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
         "period": period,
         "controls": index_controls,
         "completeness": completeness,
-        "completeness_basis": "số hàng ánh xạ pha 1 có đủ mọi loại bằng "
-                              "chứng / tổng số hàng pha 1 — collector "
-                              "tính từ dữ liệu thật của lần chạy",
+        "completeness_basis": "phase-1 mapping rows with every "
+                              "evidence type present / total phase-1 "
+                              "rows - computed by the collector from "
+                              "the run's real data",
         "generated_by": f"{TOOL_NAME} {TOOL_VERSION} (M4 collector)",
         "run_id": run_id,
     }
     idx_errs = validate(index_record,
                         schemas["control-evidence-index"])
-    if idx_errs:  # không bao giờ được xảy ra — lỗi của chính collector
-        print("LỖI NỘI BỘ: record chỉ mục do collector sinh không khớp "
-              f"schema: {idx_errs}", file=sys.stderr)
+    if idx_errs:  # must never happen - a bug in the collector itself
+        print("INTERNAL ERROR: the collector-generated index record "
+              f"does not match its schema: {idx_errs}", file=sys.stderr)
         return 2
-    # Sau khi có index, cập nhật truy vết cho các hàng dùng loại này
+    # Once the index exists, update traceability for rows using this type
     for t in traceability:
         for per in t["evidence"]:
             if per["evidence_type"] == "control-evidence-index":
@@ -776,7 +795,7 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
     completeness = round(full_rows / len(traceability), 4)
     index_record["completeness"] = completeness
 
-    # --- Tóm tắt finding -----------------------------------------------------
+    # --- Findings summary -----------------------------------------------------
     secret_findings = extract_secret_findings(run_dir, gate_dirs)
     vuln_summary = extract_vuln_summary(records)
     denied_gates = [g for g, s in gate_status.items()
@@ -786,19 +805,20 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
     bundle_status = "evidence-incomplete" if problems else "complete"
 
     if problems and not allow_incomplete:
-        print("COLLECT DỪNG — lần chạy không đủ điều kiện đóng bundle:",
+        print("COLLECT STOPPED - the run does not qualify for bundling:",
               file=sys.stderr)
         for p in problems:
             print(f"  - {p}", file=sys.stderr)
-        print("Dùng --allow-incomplete nếu vẫn muốn đóng bundle kèm cờ "
-              "'evidence-incomplete' (chế độ CI chỉ-thu-thập).",
+        print("Use --allow-incomplete to bundle anyway with the "
+              "'evidence-incomplete' flag (CI collect-only mode).",
               file=sys.stderr)
         return 1
 
-    # --- Chuẩn bị chữ ký (nếu --sign): sinh khoá tạm NGOÀI cây trước
-    # khi viết metadata, để khai báo chữ ký (kèm vân tay khoá công
-    # khai) nằm ngay trong bundle.json + manifest.json — cả hai đều
-    # được bundle.sha256 bao phủ, và chữ ký ký trên bundle.sha256.
+    # --- Prepare signing (if --sign): generate the ephemeral key
+    # OUTSIDE the tree before writing metadata, so the signature
+    # declaration (with the public-key fingerprint) sits in
+    # bundle.json + manifest.json - both covered by bundle.sha256,
+    # and the signature signs bundle.sha256.
     sign_tmp = None
     sign_dir = None
     signature_decl = None
@@ -810,33 +830,34 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
             pub_path = generate_signing_keypair(cosign_bin, sign_dir)
         except RuntimeError as exc:
             sign_tmp.cleanup()
-            print(f"LỖI: {exc}", file=sys.stderr)
+            print(f"ERROR: {exc}", file=sys.stderr)
             return 2
         signature_decl = {
-            "scheme": "cosign sign-blob (định dạng Sigstore bundle)",
+            "scheme": "cosign sign-blob (Sigstore bundle format)",
             "signed_file": "bundle.sha256",
             "signature_file": SIG_BUNDLE_NAME,
             "public_key_file": SIG_PUBKEY_NAME,
             "public_key_sha256": sha256_file(pub_path),
             "identity": "local:cosign-ephemeral-key",
-            "note": "Khoá tạm theo lần chạy, sinh ngoài cây và HUỶ "
-                    "ngay sau khi ký; khoá riêng không vào bundle. "
-                    "Chữ ký cục bộ không có transparency log và "
-                    "không gắn danh tính OIDC — keyless OIDC + Rekor "
-                    "trên CI là việc M5-B. Muốn chữ ký có giá trị "
-                    "chống ký-lại, đối chiếu public_key_sha256 này "
-                    "với bản ghi ngoài bundle (hồ sơ phát hành / log "
-                    "CI) trước khi tin cosign.pub trong bundle.",
+            "note": "Per-run ephemeral key, generated outside the "
+                    "tree and DESTROYED right after signing; the "
+                    "private key never enters the bundle. A local "
+                    "signature has no transparency log and no OIDC "
+                    "identity - keyless OIDC + Rekor on CI is M5-B "
+                    "work. For re-signing resistance, compare this "
+                    "public_key_sha256 against a record outside the "
+                    "bundle (release record / CI log) before trusting "
+                    "the cosign.pub inside the bundle.",
         }
 
-    # --- Đóng gói -------------------------------------------------------------
+    # --- Packaging -------------------------------------------------------------
     generated_at = iso_now()
     bundle_id = f"{run_id}-{generated_at.replace(':', '').replace('-', '')}"
     bundle_dir = out_dir or (DEFAULT_BUNDLES_DIR / bundle_id)
     if bundle_dir.exists():
         if sign_tmp is not None:
             sign_tmp.cleanup()
-        print(f"LỖI: thư mục bundle đã tồn tại: {bundle_dir}",
+        print(f"ERROR: bundle directory already exists: {bundle_dir}",
               file=sys.stderr)
         return 2
     bundle_dir.mkdir(parents=True)
@@ -873,7 +894,7 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
                 break
         add_file(rec["source"], rec["bundle_path"], "record", extra)
 
-    # record chỉ mục của collector
+    # the collector's index record
     idx_path = bundle_dir / "records/collector/" \
         "control-evidence-index.record.json"
     write_json(idx_path, index_record)
@@ -886,14 +907,14 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
         "mapping_rows": type_rows.get("control-evidence-index", []),
         "source_mtime": generated_at})
 
-    # record ci-log + artefact zip log (khi lần chạy có file log)
+    # ci-log record + log zip artefact (when the run has log files)
     ci_log_summary = None
     if ci_log_plan is not None:
         ci_rec = ci_log_plan["record"]
         ci_errs = validate(ci_rec, schemas["ci-log"])
-        if ci_errs:  # không bao giờ được xảy ra — lỗi của collector
-            print("LỖI NỘI BỘ: record ci-log do collector sinh không "
-                  f"khớp schema: {ci_errs}", file=sys.stderr)
+        if ci_errs:  # must never happen - a bug in the collector
+            print("INTERNAL ERROR: the collector-generated ci-log record "
+                  f"does not match its schema: {ci_errs}", file=sys.stderr)
             if sign_tmp is not None:
                 sign_tmp.cleanup()
             return 2
@@ -928,7 +949,7 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
         add_file(art["source"], f"artifacts/{art['path']}", "artifact",
                  {"gate": art["gate"], "kind": art["kind"]})
 
-    for rej in rejected:  # chỉ tới đây khi --allow-incomplete
+    for rej in rejected:  # only reached with --allow-incomplete
         dest_rel = f"rejected/{rej['source']}"
         add_file(run_dir / rej["source"], dest_rel, "rejected-record",
                  {"gate": rej["gate"], "schema_errors": rej["errors"]})
@@ -945,7 +966,7 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
         "gates_denied": denied_gates, "gates_disabled": disabled_gates,
         "records_valid": len(records) + 1
                          + (1 if ci_log_plan is not None else 0),
-        # +1: index của collector; +1 nữa khi có record ci-log
+        # +1: the collector's index; +1 more when there is a ci-log record
         "records_rejected": rejected,
         "supplementary_records": supplementary_paths,
         "ci_log": ci_log_summary,
@@ -992,16 +1013,17 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
         "run_id": run_id, "generated_at": generated_at,
         "status": bundle_status, "commit_shas": sorted(commit_shas),
         "collector": {"tool": TOOL_NAME, "version": TOOL_VERSION},
-        "note": "Mọi file trong bundle (trừ manifest.json và "
-                "bundle.sha256) đều có một dòng ở đây kèm SHA-256, kích "
-                "thước và vai trò. bundle.sha256 bao phủ thêm cả "
-                "manifest.json để mọi sửa đổi đều bị phát hiện khi "
-                "chạy verify hoặc `sha256sum -c bundle.sha256`."
-                + (" Bundle này CÓ chữ ký Cosign trên bundle.sha256 "
-                   "(trường 'signature' ở trên); hai file "
-                   "bundle.sigstore.json và cosign.pub cố ý không có "
-                   "dòng trong manifest và không được bundle.sha256 "
-                   "bao phủ — chúng chứng thực chính bundle.sha256."
+        "note": "Every file in the bundle (except manifest.json and "
+                "bundle.sha256) has one line here with its SHA-256, "
+                "size and role. bundle.sha256 additionally covers "
+                "manifest.json so any modification is detected by "
+                "verify or `sha256sum -c bundle.sha256`."
+                + (" This bundle HAS a Cosign signature on "
+                   "bundle.sha256 (the 'signature' field above); the "
+                   "files bundle.sigstore.json and cosign.pub "
+                   "intentionally have no manifest line and are not "
+                   "covered by bundle.sha256 - they authenticate "
+                   "bundle.sha256 itself."
                    if signature_decl else ""),
         "files": manifest_files,
     }
@@ -1018,7 +1040,7 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
     (bundle_dir / "bundle.sha256").write_text(
         "\n".join(sha_lines) + "\n", encoding="utf-8")
 
-    # --- Ký bundle.sha256 bằng khoá tạm, rồi huỷ khoá -----------------
+    # --- Sign bundle.sha256 with the ephemeral key, then destroy it -----------------
     if sign:
         try:
             sig_tmp_out = sign_dir / SIG_BUNDLE_NAME
@@ -1028,63 +1050,64 @@ def collect(run_dir: Path, out_dir: Path | None, run_id: str | None,
             shutil.copy2(sig_tmp_out, bundle_dir / SIG_BUNDLE_NAME)
             shutil.copy2(sign_dir / "cosign.pub",
                          bundle_dir / SIG_PUBKEY_NAME)
-            # Tự kiểm chứng ngay như gate 6: chữ ký vừa tạo phải
-            # verify được bằng chính bản sao đã đưa vào bundle.
+            # Self-verify immediately, like gate 6: the signature
+            # just created must verify with the very copy placed in
+            # the bundle.
             cosign_verify_blob(cosign_bin, bundle_dir / SIG_PUBKEY_NAME,
                                bundle_dir / SIG_BUNDLE_NAME,
                                bundle_dir / "bundle.sha256", bundle_dir)
         except RuntimeError as exc:
-            print(f"LỖI: ký bundle thất bại — xoá bundle chưa ký: "
-                  f"{exc}", file=sys.stderr)
+            print(f"ERROR: bundle signing failed - deleting the unsigned "
+                  f"bundle: {exc}", file=sys.stderr)
             shutil.rmtree(bundle_dir, ignore_errors=True)
             sign_tmp.cleanup()
             return 2
         sign_tmp.cleanup()
 
     print(f"Bundle: {bundle_dir}")
-    print(f"  run={run_id}  trạng thái={bundle_status}  "
+    print(f"  run={run_id}  status={bundle_status}  "
           f"records={len(records) + 1 + (1 if ci_log_plan is not None else 0)} "
-          f"(gồm {1 + (1 if ci_log_plan is not None else 0)} do "
-          f"collector sinh)  "
-          f"artefact={len(artifacts)}  bị loại={len(rejected)}")
-    print(f"  gate chặn: {denied_gates or 'không'}  "
-          f"gate tắt: {disabled_gates or 'không'}  "
-          f"truy vết đầy đủ: {full_rows}/{len(traceability)} hàng pha 1")
+          f"({1 + (1 if ci_log_plan is not None else 0)} of them "
+          f"collector-generated)  "
+          f"artefacts={len(artifacts)}  rejected={len(rejected)}")
+    print(f"  blocking gates: {denied_gates or 'none'}  "
+          f"disabled gates: {disabled_gates or 'none'}  "
+          f"full traceability: {full_rows}/{len(traceability)} phase-1 rows")
     if signature_decl:
-        print(f"  chữ ký: Cosign trên bundle.sha256 (khoá tạm cục bộ, "
-              f"vân tay khoá công khai "
-              f"{signature_decl['public_key_sha256'][:16]}…) — verify "
-              f"sẽ kiểm thêm chữ ký")
-    print(f"  Kiểm chứng: python3 evidence/verify_bundle.py {bundle_dir}")
+        print(f"  signature: Cosign on bundle.sha256 (local ephemeral "
+              f"key, public-key fingerprint "
+              f"{signature_decl['public_key_sha256'][:16]}...) - verify "
+              f"will also check the signature")
+    print(f"  Verify: python3 evidence/verify_bundle.py {bundle_dir}")
     return 0
 
 
 def render_summary_md(summary, mapping) -> str:
     lines = []
-    lines.append(f"# Báo cáo tổng hợp bằng chứng — {summary['run_id']}")
+    lines.append(f"# Evidence summary report — {summary['run_id']}")
     lines.append("")
     lines.append(f"- Bundle: `{summary['bundle_id']}`")
-    lines.append(f"- Sinh lúc (UTC): {summary['generated_at']}")
-    lines.append(f"- Trạng thái bundle: **{summary['status']}**")
+    lines.append(f"- Generated at (UTC): {summary['generated_at']}")
+    lines.append(f"- Bundle status: **{summary['status']}**")
     commits = ", ".join(f"`{c}`" for c in summary["commit_shas"]) or "—"
-    lines.append(f"- Commit SHA trong các record: {commits}")
-    lines.append(f"- Record hợp lệ: {summary['records_valid']} · "
-                 f"record bị loại: {len(summary['records_rejected'])} · "
-                 f"artefact kèm theo: {summary['artifacts_bundled']}")
+    lines.append(f"- Commit SHAs in the records: {commits}")
+    lines.append(f"- Valid records: {summary['records_valid']} · "
+                 f"rejected records: {len(summary['records_rejected'])} · "
+                 f"bundled artefacts: {summary['artifacts_bundled']}")
     if summary["problems"]:
         lines.append("")
-        lines.append("## Vấn đề (bundle bị gắn cờ evidence-incomplete)")
+        lines.append("## Problems (bundle flagged evidence-incomplete)")
         for p in summary["problems"]:
             lines.append(f"- {p}")
     lines.append("")
-    lines.append("## Kết quả theo gate")
+    lines.append("## Results by gate")
     lines.append("")
-    lines.append("| Gate | Trạng thái | Quyết định policy | Record |")
+    lines.append("| Gate | Status | Policy decision | Records |")
     lines.append("|---|---|---|---|")
     for g in summary["gates"]:
         decs = "; ".join(
             f"{d['policy_id']} → **{d['decision']}**"
-            + (f" ({len(d['violations'])} vi phạm)"
+            + (f" ({len(d['violations'])} violations)"
                if d["violations"] else "")
             for d in g["decisions"]) or "—"
         note = f" — {g['note']}" if g["note"] else ""
@@ -1094,89 +1117,89 @@ def render_summary_md(summary, mapping) -> str:
               if d["decision"] == "deny"]
     if denies:
         lines.append("")
-        lines.append("### Lý do chặn (nguyên văn từ policy-decision)")
+        lines.append("### Blocking reasons (verbatim from the policy-decisions)")
         for d in denies:
             lines.append(f"- **{d['policy_id']}**:")
             for v in d["violations"]:
                 lines.append(f"  - {v}")
     lines.append("")
-    lines.append("## Finding secret (từ SARIF của gate 1)")
+    lines.append("## Secret findings (from gate 1's SARIF)")
     lines.append("")
     if summary["secret_findings"]:
         for s in summary["secret_findings"]:
-            lines.append(f"- rule `{s['rule']}` tại `{s['file']}:"
+            lines.append(f"- rule `{s['rule']}` at `{s['file']}:"
                          f"{s['line']}`")
     else:
-        lines.append("- Không có finding secret nào trong lần chạy này.")
+        lines.append("- No secret findings in this run.")
     lines.append("")
-    lines.append("## Lỗ hổng (record vuln-risk-ranking, gate 8)")
+    lines.append("## Vulnerabilities (vuln-risk-ranking record, gate 8)")
     lines.append("")
     vuln = summary["vulnerabilities"]
     if vuln:
         feeds = vuln.get("feed_versions") or {}
         feeds_txt = ", ".join(f"{k}={v}" for k, v in feeds.items()) \
             if isinstance(feeds, dict) else str(feeds)
-        lines.append(f"- Tổng số dòng xếp hạng: {vuln['entries_total']} "
-                     f"({vuln['unique_cves']} CVE khác nhau); nguồn: "
+        lines.append(f"- Total ranked entries: {vuln['entries_total']} "
+                     f"({vuln['unique_cves']} distinct CVEs); source: "
                      f"`{vuln['source_record']}`; feed: {feeds_txt}")
-        lines.append(f"- Quyết định issue: {vuln['issue_entries']} dòng.")
-        lines.append(f"- Quyết định BLOCK (đã khử trùng lặp theo "
-                     f"CVE/gói/phiên bản): {len(vuln['block_unique'])}")
+        lines.append(f"- Issue decisions: {vuln['issue_entries']} entries.")
+        lines.append(f"- BLOCK decisions (deduplicated by "
+                     f"CVE/package/version): {len(vuln['block_unique'])}")
         for b in vuln["block_unique"]:
             lines.append(f"  - {b['cve']} — {b['package']}=={b['version']}"
                          f" (KEV: {b['in_kev']}, EPSS: {b['epss']})")
-        lines.append(f"- Thuộc CISA KEV: {len(vuln['kev_unique'])} CVE "
-                     f"khác nhau.")
+        lines.append(f"- In CISA KEV: {len(vuln['kev_unique'])} distinct "
+                     f"CVEs.")
     else:
-        lines.append("- Không có record vuln-risk-ranking trong lần "
-                     "chạy này.")
+        lines.append("- No vuln-risk-ranking record in this "
+                     "run.")
     lines.append("")
-    lines.append("## Truy vết: khung → policy → gate → bằng chứng")
+    lines.append("## Traceability: framework → policy → gate → evidence")
     lines.append("")
-    lines.append(f"Hàng pha 1 có đủ mọi loại bằng chứng: "
-                 f"**{summary['completeness_full_rows']}**. Loại bằng "
-                 f"chứng chưa có trong lần chạy được ghi rõ, không để "
-                 f"trống im lặng.")
+    lines.append(f"Phase-1 rows with every evidence type present: "
+                 f"**{summary['completeness_full_rows']}**. Evidence types "
+                 f"absent from this run are stated explicitly, never "
+                 f"left silently blank.")
     lines.append("")
-    lines.append("| Hàng | Khung — nhóm kiểm soát | Policy | Gate | "
-                 "Bằng chứng | Trạng thái |")
+    lines.append("| Row | Framework — control group | Policy | Gate | "
+                 "Evidence | Status |")
     lines.append("|---|---|---|---|---|---|")
     for t in summary["traceability"]:
         ev = "<br>".join(
             f"{'✅' if e['present'] else '❌'} {e['evidence_type']}"
-            + (" (collector sinh)" if e["origin"] == "collector" else "")
+            + (" (collector-generated)" if e["origin"] == "collector" else "")
             for e in t["evidence"])
         gates = ", ".join(str(g) for g in t["gates"]) or \
             (t["gate_note"] or "—")
-        status_vi = {"full": "đủ", "partial": "một phần",
-                     "none": "chưa có"}[t["status"]]
+        status_vi = {"full": "full", "partial": "partial",
+                     "none": "none"}[t["status"]]
         lines.append(
             f"| {t['row']} | {t['framework']} — {t['control_group']} | "
             f"{', '.join(t['policies'])} | {gates} | {ev} | "
             f"{status_vi} |")
     missing_notes = {
-        "change-record": "chưa có trong lần chạy này — sinh bằng "
+        "change-record": "not present in this run - generate it with "
                          "`evidence/generators.py change-record "
-                         "--run-dir <lần chạy>` (từ kết quả gate "
-                         "thật của chính lần chạy) trước khi collect",
-        "ci-log": "lần chạy không chứa file log (.log) nào để "
-                  "collector đóng gói — ci-log chỉ được phát hành "
-                  "khi có log thật của lần chạy",
-        "drift-report": "chưa có trong lần chạy này — sinh bằng "
-                        "`evidence/generators.py drift-report` (so "
-                        "cấu hình hiện tại với baseline đã khai) "
-                        "trước khi collect",
-        "config-baseline-report": "chưa có trong lần chạy này — sinh "
-                                  "bằng `evidence/generators.py "
-                                  "config-baseline` trước khi collect",
-        "access-review-report": "chưa có trong lần chạy này — sinh "
-                                "bằng `evidence/generators.py "
-                                "access-review` trước khi collect",
-        "pr-review-report": "chỉ sinh khi gate 10 bật — gate 10 đang "
-                            "TẮT theo thiết kế pha 1",
+                         "--run-dir <run>` (from the real gate results "
+                         "of this very run) before collecting",
+        "ci-log": "the run contains no log file (.log) for the "
+                  "collector to package - a ci-log is only issued "
+                  "when the run has real logs",
+        "drift-report": "not present in this run - generate it with "
+                        "`evidence/generators.py drift-report` (compares "
+                        "the current configuration with the declared baseline) "
+                        "before collecting",
+        "config-baseline-report": "not present in this run - generate "
+                                  "it with `evidence/generators.py "
+                                  "config-baseline` before collecting",
+        "access-review-report": "not present in this run - generate "
+                                "it with `evidence/generators.py "
+                                "access-review` before collecting",
+        "pr-review-report": "only generated when gate 10 is on - gate 10 is "
+                            "OFF by phase-1 design",
     }
     lines.append("")
-    lines.append("### Loại bằng chứng chưa có — lý do")
+    lines.append("### Missing evidence types — reasons")
     lines.append("")
     seen_missing = set()
     for t in summary["traceability"]:
@@ -1185,54 +1208,54 @@ def render_summary_md(summary, mapping) -> str:
                 seen_missing.add(e["evidence_type"])
                 reason = missing_notes.get(
                     e["evidence_type"],
-                    "chưa có nguồn sinh trong lần chạy này")
+                    "no generator source in this run")
                 lines.append(f"- `{e['evidence_type']}`: {reason}")
     if summary["records_rejected"]:
         lines.append("")
-        lines.append("## Record bị loại (sai schema — nêu tên)")
+        lines.append("## Rejected records (schema failures — named)")
         lines.append("")
         for r in summary["records_rejected"]:
             lines.append(f"- `{r['source']}`: " + "; ".join(r["errors"]))
     lines.append("")
-    lines.append("## File của lần chạy KHÔNG đưa vào bundle")
+    lines.append("## Run files NOT included in the bundle")
     lines.append("")
     by_cat = {}
     for e in summary["excluded"]:
         by_cat.setdefault(e["category"], []).append(e)
     for cat, items in sorted(by_cat.items()):
-        lines.append(f"- **{cat}**: {len(items)} mục — "
+        lines.append(f"- **{cat}**: {len(items)} items — "
                      f"{items[0]['reason']}")
         for it in items:
             lines.append(f"  - `{it['path']}`")
     if summary.get("supplementary_records"):
         lines.append("")
-        lines.append("## Record phụ trợ (bộ sinh bằng chứng quyết "
-                     "định/định kỳ)")
+        lines.append("## Supplementary records (decision/periodic "
+                     "evidence generators)")
         lines.append("")
-        lines.append("Sinh bởi `evidence/generators.py` từ dữ liệu "
-                     "thật của lần chạy/cây, ghi vào "
-                     "`supplementary-records/` và được collector kiểm "
-                     "schema như mọi record khác:")
+        lines.append("Generated by `evidence/generators.py` from the "
+                     "run's/tree's real data, written into "
+                     "`supplementary-records/` and schema-checked by the collector "
+                     "like every other record:")
         for p in summary["supplementary_records"]:
             lines.append(f"- `{p}`")
     if summary.get("ci_log"):
         ci = summary["ci_log"]
         lines.append("")
-        lines.append("## Log CI (record ci-log do collector phát hành)")
+        lines.append("## CI logs (ci-log record issued by the collector)")
         lines.append("")
         lines.append(f"- Record: `{ci['record']}`")
-        lines.append(f"- Artefact gói log: `{ci['artifact']}` "
-                     f"({ci['log_file_count']} file log)")
-        lines.append(f"- SHA-256 của gói log (khai trong record): "
-                     f"`{ci['sha256']}` — verify đối chiếu lại hash "
-                     f"này với artefact trong bundle")
+        lines.append(f"- Log package artefact: `{ci['artifact']}` "
+                     f"({ci['log_file_count']} log files)")
+        lines.append(f"- SHA-256 of the log package (declared in the record): "
+                     f"`{ci['sha256']}` — verify re-checks this hash "
+                     f"against the artefact in the bundle")
     lines.append("")
-    lines.append("## Kiểm chứng bundle này")
+    lines.append("## Verifying this bundle")
     lines.append("")
     lines.append("```bash")
-    lines.append("python3 evidence/verify_bundle.py <thư-mục-bundle>")
-    lines.append("# hoặc thuần tuý kiểm hash:")
-    lines.append("cd <thư-mục-bundle> && sha256sum -c bundle.sha256")
+    lines.append("python3 evidence/verify_bundle.py <bundle-dir>")
+    lines.append("# or check hashes only:")
+    lines.append("cd <bundle-dir> && sha256sum -c bundle.sha256")
     lines.append("```")
     lines.append("")
     return "\n".join(lines)
@@ -1245,20 +1268,20 @@ def render_summary_md(summary, mapping) -> str:
 def verify(bundle_dir: Path, cosign: str | None = None) -> int:
     errors, notes = [], []
     if not bundle_dir.is_dir():
-        print(f"FAIL: thư mục bundle không tồn tại: {bundle_dir}")
+        print(f"FAIL: bundle directory does not exist: {bundle_dir}")
         return 1
     sha_path = bundle_dir / "bundle.sha256"
     manifest_path = bundle_dir / "manifest.json"
     if not sha_path.is_file():
-        errors.append("thiếu bundle.sha256 — không kiểm chứng được")
+        errors.append("missing bundle.sha256 — cannot verify")
     if not manifest_path.is_file():
-        errors.append("thiếu manifest.json — không kiểm chứng được")
+        errors.append("missing manifest.json — cannot verify")
     if errors:
         for e in errors:
             print(f"FAIL: {e}")
         return 1
 
-    # 1) bundle.sha256 bao phủ mọi file, hash khớp từng file
+    # 1) bundle.sha256 covers every file, hashes match file by file
     recorded = {}
     for line in sha_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -1270,31 +1293,31 @@ def verify(bundle_dir: Path, cosign: str | None = None) -> int:
     for p in sorted(bundle_dir.rglob("*")):
         if p.is_file():
             relp = p.relative_to(bundle_dir).as_posix()
-            # bundle.sha256 tự bao phủ các file khác; hai file chữ ký
-            # ở gốc bundle chứng thực chính bundle.sha256 nên cũng
-            # đứng ngoài diện bao phủ này (kiểm riêng ở bước 4).
+            # bundle.sha256 covers the other files; the two signature
+            # files at the bundle root authenticate bundle.sha256 itself,
+            # so they also stand outside this coverage (checked in step 4).
             if relp != "bundle.sha256" and relp not in SIGNATURE_FILES:
                 disk_files[relp] = p
     for name, digest in sorted(recorded.items()):
         if name not in disk_files:
-            errors.append(f"bundle.sha256 liệt kê nhưng file không có: "
+            errors.append(f"bundle.sha256 lists it but the file is missing: "
                           f"{name}")
         else:
             actual = sha256_file(disk_files[name])
             if actual != digest:
                 errors.append(
-                    f"hash không khớp: {name} (manifest ghi {digest[:16]}"
-                    f"…, thực tế {actual[:16]}… — file đã bị sửa đổi)")
+                    f"hash mismatch: {name} (manifest says {digest[:16]}"
+                    f"…, actual {actual[:16]}… — the file has been modified)")
     for name in sorted(disk_files):
         if name not in recorded:
-            errors.append(f"file có trong bundle nhưng không được "
-                          f"bundle.sha256 bao phủ: {name}")
+            errors.append(f"file present in the bundle but not covered "
+                          f"by bundle.sha256: {name}")
 
-    # 2) manifest nhất quán với bundle.sha256 và với đĩa
+    # 2) manifest consistent with bundle.sha256 and with disk
     try:
         manifest = load_json(manifest_path)
     except Exception as exc:
-        errors.append(f"manifest.json không đọc được: {exc}")
+        errors.append(f"manifest.json cannot be parsed: {exc}")
         manifest = None
     manifest_entries = {}
     if manifest is not None:
@@ -1303,24 +1326,24 @@ def verify(bundle_dir: Path, cosign: str | None = None) -> int:
             if entry["path"] in recorded and \
                     recorded[entry["path"]] != entry["sha256"]:
                 errors.append(
-                    f"manifest và bundle.sha256 lệch nhau tại "
+                    f"manifest and bundle.sha256 disagree at "
                     f"{entry['path']}")
         expected = set(disk_files) - {"manifest.json"}
         if set(manifest_entries) != expected:
             diff = sorted(set(manifest_entries) ^ expected)
             errors.append(
-                f"manifest không khớp tập file trên đĩa tại: "
+                f"manifest does not match the on-disk file set at: "
                 f"{', '.join(diff[:5])}")
         if manifest.get("status") == "evidence-incomplete":
-            notes.append("bundle mang cờ 'evidence-incomplete' từ lúc "
-                         "collect (xem summary.json để biết vấn đề)")
+            notes.append("bundle carries the 'evidence-incomplete' flag from "
+                         "collect time (see summary.json for the problems)")
 
-    # 3) Kiểm tra lại schema của mọi record trong bundle
+    # 3) Re-check the schema of every record in the bundle
     schemas_dir = bundle_dir / "schemas"
     if not schemas_dir.is_dir():
         schemas_dir = DEFAULT_SCHEMAS_DIR
-        notes.append("bundle không kèm schemas/ — dùng schema M2 trong "
-                     "repo để kiểm tra lại")
+        notes.append("bundle has no schemas/ — using the M2 schemas in "
+                     "the repo to re-check")
     schemas = load_schemas(schemas_dir)
     records_dir = bundle_dir / "records"
     n_records = 0
@@ -1332,55 +1355,55 @@ def verify(bundle_dir: Path, cosign: str | None = None) -> int:
             try:
                 data = load_json(p)
             except Exception as exc:
-                errors.append(f"{relp}: không đọc được JSON: {exc}")
+                errors.append(f"{relp}: cannot parse JSON: {exc}")
                 continue
             etype = data.get("evidence_type") if isinstance(data, dict) \
                 else None
             if etype not in schemas:
-                errors.append(f"{relp}: evidence_type {etype!r} không "
-                              f"có schema tương ứng")
+                errors.append(f"{relp}: evidence_type {etype!r} has no "
+                              f"corresponding schema")
                 continue
             for err in validate(data, schemas[etype]):
                 errors.append(f"{relp}: {err}")
             if etype == "ci-log":
                 ci_log_records.append((relp, data))
     else:
-        errors.append("bundle không có thư mục records/")
+        errors.append("bundle has no records/ directory")
 
-    # 3b) Đối chiếu chéo record ci-log: hash khai trong record phải
-    # khớp SHA-256 thật của artefact gói log nằm trong bundle — bắt
-    # được cả trường hợp record và artefact bị sửa không nhất quán.
+    # 3b) Cross-check the ci-log record: the hash declared in the record
+    # must match the real SHA-256 of the log-package artefact inside the
+    # bundle — catches record and artefact being edited inconsistently.
     for relp, data in ci_log_records:
         artifact_uri = data.get("artifact_uri") or ""
         declared = (data.get("sha256") or "").removeprefix("sha256:")
         artifact_path = bundle_dir / artifact_uri
         if not artifact_uri or not artifact_path.is_file():
             errors.append(
-                f"{relp}: record ci-log trỏ tới artefact "
-                f"{artifact_uri!r} không có trong bundle")
+                f"{relp}: ci-log record points at artefact "
+                f"{artifact_uri!r} which is not in the bundle")
         elif declared and sha256_file(artifact_path) != declared:
             errors.append(
-                f"{relp}: hash gói log khai trong record "
-                f"({declared[:16]}…) không khớp SHA-256 thật của "
-                f"{artifact_uri} — record hoặc artefact đã bị sửa "
-                f"không nhất quán")
+                f"{relp}: log-package hash declared in the record "
+                f"({declared[:16]}…) does not match the actual SHA-256 of "
+                f"{artifact_uri} — the record or the artefact has been "
+                f"edited inconsistently")
         else:
             notes.append(
-                f"ci-log: hash gói log ({artifact_uri}) khớp khai "
-                f"báo trong record")
+                f"ci-log: log archive hash ({artifact_uri}) matches the "
+                f"declaration in the record")
     rejected_dir = bundle_dir / "rejected"
     if rejected_dir.is_dir():
         n_rej = sum(1 for _ in rejected_dir.rglob("*") if _.is_file())
-        notes.append(f"bundle chứa {n_rej} record bị collector loại "
-                     f"(đã nêu lý do trong manifest/summary) — các file "
-                     f"này đã được kiểm hash ở bước 1 nhưng không nằm "
-                     f"trong diện kiểm schema")
+        notes.append(f"bundle contains {n_rej} records rejected by the collector "
+                     f"(reasons stated in the manifest/summary) — these files "
+                     f"were hash-checked in step 1 but are not in "
+                     f"the schema-check set")
 
-    # 4) Chữ ký Cosign trên bundle.sha256 — khi bundle CÓ khai báo
-    # chữ ký (trong manifest.json, dự phòng bundle.json; cả hai đều
-    # được bundle.sha256 bao phủ nên khai báo không bị sửa âm thầm).
-    # Khai báo mà thiếu file/không kiểm được/sai chữ ký = FAIL ồn ào,
-    # không bao giờ hạ xuống "chỉ kiểm hash".
+    # 4) Cosign signature on bundle.sha256 — when the bundle DECLARES
+    # a signature (in manifest.json, fallback bundle.json; both are
+    # covered by bundle.sha256 so the declaration cannot be edited
+    # silently). A declaration with a missing/unverifiable/invalid
+    # signature is a LOUD FAIL, never downgraded to "hash check only".
     decl = None
     if manifest is not None:
         decl = manifest.get("signature")
@@ -1397,54 +1420,54 @@ def verify(bundle_dir: Path, cosign: str | None = None) -> int:
         pub_path = bundle_dir / decl.get("public_key_file",
                                          SIG_PUBKEY_NAME)
         if not sig_path.is_file():
-            errors.append("bundle khai báo có chữ ký Cosign nhưng "
-                          f"thiếu file chữ ký {sig_path.name}")
+            errors.append("bundle declares a Cosign signature but is "
+                          f"missing the signature file {sig_path.name}")
         if not pub_path.is_file():
-            errors.append("bundle khai báo có chữ ký Cosign nhưng "
-                          f"thiếu khoá công khai {pub_path.name}")
+            errors.append("bundle declares a Cosign signature but is "
+                          f"missing the public key {pub_path.name}")
         if sig_path.is_file() and pub_path.is_file():
             fingerprint = decl.get("public_key_sha256")
             if fingerprint and sha256_file(pub_path) != fingerprint:
                 errors.append(
-                    "cosign.pub không khớp vân tay khoá công khai đã "
-                    "khai báo trong manifest — khoá đã bị thay")
+                    "cosign.pub does not match the public-key fingerprint "
+                    "declared in the manifest — the key has been replaced")
             cosign_bin = find_cosign(cosign)
             if not cosign_bin:
                 errors.append(
-                    "bundle có khai báo chữ ký Cosign nhưng không "
-                    "tìm thấy cosign để kiểm chứng (cài cosign hoặc "
-                    "truyền --cosign / COSIGN_BINARY) — không coi "
-                    "là đạt")
+                    "bundle declares a Cosign signature but no cosign "
+                    "binary was found to verify it (install cosign or "
+                    "pass --cosign / COSIGN_BINARY) — not counted "
+                    "as passing")
             else:
                 try:
                     cosign_verify_blob(
                         cosign_bin, pub_path, sig_path,
                         bundle_dir / "bundle.sha256", bundle_dir)
                     notes.append(
-                        "chữ ký Cosign trên bundle.sha256: HỢP LỆ "
-                        "(khoá cục bộ tạm thời; giới hạn so với "
+                        "Cosign signature on bundle.sha256: VALID "
+                        "(local ephemeral key; limits vs keyless "
                         "keyless OIDC — xem evidence/README.md)")
                 except RuntimeError as exc:
-                    errors.append(f"chữ ký Cosign KHÔNG hợp lệ: {exc}")
+                    errors.append(f"Cosign signature INVALID: {exc}")
     elif has_sig_files:
-        notes.append("bundle có file chữ ký ở gốc nhưng manifest "
-                     "không khai báo chữ ký — không kiểm chứng chữ ký")
+        notes.append("bundle has signature files at its root but the manifest "
+                     "declares no signature — signature not verified")
     else:
-        notes.append("bundle không có chữ ký mật mã — chỉ kiểm toàn "
-                     "vẹn bằng SHA-256")
+        notes.append("bundle has no cryptographic signature — integrity "
+                     "checked by SHA-256 only")
 
     print(f"Bundle: {bundle_dir}")
-    print(f"  file được kiểm hash: {len(recorded)} · "
-          f"record được kiểm schema: {n_records}")
+    print(f"  files hash-checked: {len(recorded)} · "
+          f"records schema-checked: {n_records}")
     for n in notes:
-        print(f"  LƯU Ý: {n}")
+        print(f"  NOTE: {n}")
     if errors:
-        print("KẾT QUẢ: FAIL")
+        print("RESULT: FAIL")
         for e in errors:
             print(f"  - {e}")
         return 1
-    print("KẾT QUẢ: PASS — mọi hash khớp manifest, mọi record khớp "
-          "schema M2")
+    print("RESULT: PASS — every hash matches the manifest, every record "
+          "matches the M2 schemas")
     return 0
 
 
@@ -1457,37 +1480,37 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_collect = sub.add_parser(
-        "collect", help="thu thập + đóng bundle từ một lần chạy gates")
+        "collect", help="collect + package a bundle from one gates run")
     p_collect.add_argument("run_dir",
-                           help="thư mục lần chạy (evidence/output/<run>)")
+                           help="run directory (evidence/output/<run>)")
     p_collect.add_argument("--out-dir", default=None,
-                           help="thư mục bundle đầu ra (mặc định: "
-                                "evidence/bundles/<run>-<thời gian>)")
+                           help="output bundle directory (default: "
+                                "evidence/bundles/<run>-<timestamp>)")
     p_collect.add_argument("--run-id", default=None,
-                           help="định danh lần chạy (mặc định: tên thư "
-                                "mục lần chạy)")
+                           help="run identifier (default: the run "
+                                "directory name)")
     p_collect.add_argument("--allow-incomplete", action="store_true",
-                           help="vẫn đóng bundle khi có record sai "
-                                "schema/gate thiếu bằng chứng, kèm cờ "
-                                "evidence-incomplete (chế độ CI)")
+                           help="still package a bundle when records fail "
+                                "their schema/a gate lacks evidence, flagged "
+                                "evidence-incomplete (CI mode)")
     p_collect.add_argument("--sign", action="store_true",
-                           help="ký bundle.sha256 bằng Cosign (khoá "
-                                "tạm theo lần chạy, huỷ ngay sau khi "
-                                "ký; cần cosign + signing-config "
-                                "offline)")
+                           help="sign bundle.sha256 with Cosign (ephemeral "
+                                "per-run key, destroyed right after signing; "
+                                "requires cosign + an offline "
+                                "signing-config)")
     p_collect.add_argument("--cosign", default=None,
-                           help="đường dẫn cosign (mặc định: "
-                                "COSIGN_BINARY hoặc PATH)")
+                           help="path to cosign (default: "
+                                "COSIGN_BINARY or PATH)")
     p_collect.add_argument("--signing-config", default=None,
-                           help="signing-config cho cosign (mặc định: "
-                                "gates/local/signing-config-offline."
-                                "json của repo)")
+                           help="signing-config for cosign (default: "
+                                "the repo's gates/local/signing-config-offline."
+                                "json)")
 
-    p_verify = sub.add_parser("verify", help="kiểm chứng một bundle")
-    p_verify.add_argument("bundle_dir", help="thư mục bundle")
+    p_verify = sub.add_parser("verify", help="verify a bundle")
+    p_verify.add_argument("bundle_dir", help="bundle directory")
     p_verify.add_argument("--cosign", default=None,
-                          help="đường dẫn cosign để kiểm chữ ký "
-                               "(mặc định: COSIGN_BINARY hoặc PATH)")
+                          help="path to cosign for signature verification "
+                               "(default: COSIGN_BINARY or PATH)")
 
     args = parser.parse_args(argv)
     if args.command == "collect":
