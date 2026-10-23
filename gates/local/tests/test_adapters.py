@@ -7,7 +7,8 @@ Run from the repo root:
 
 Three coverage tiers:
   1. Pure module functions (direct import): osv_normalize,
-     syft_license_input, tf_parse_input, kev_epss_enrich.
+     syft_license_input, tf_parse_input, kev_epss_enrich,
+     runtime_input.
   2. CLI via subprocess with minimal hand-written JSON/YAML fixtures:
      gitleaks_input, image_block_check, workflow_input,
      kev_epss_enrich, opa_decide (requires the opa binary in ~/workspace/tools).
@@ -30,6 +31,7 @@ sys.path.insert(0, str(ADAPTERS))
 
 import kev_epss_enrich  # noqa: E402
 import osv_normalize  # noqa: E402
+import runtime_input  # noqa: E402
 import syft_license_input  # noqa: E402
 import tf_parse_input  # noqa: E402
 
@@ -375,6 +377,74 @@ class OpaDecideTests(unittest.TestCase):
             self.assertEqual(proc.returncode, 1, proc.stderr)
             self.assertEqual(rec["decision"], "deny")
             self.assertGreater(len(rec["violations"]), 0)
+
+
+FLOORS_FILE = (REPO_ROOT / "policies" / "data" / "runtime_floors.json")
+
+
+class RuntimeInputTests(unittest.TestCase):
+    """Gate 11 adapter: Dockerfile FROM extraction + floor data attach,
+    and the end-to-end policy verdict via opa_decide."""
+
+    def _workload(self, td, dockerfile_text):
+        workload = Path(td) / "workload"
+        workload.mkdir()
+        (workload / "Dockerfile").write_text(dockerfile_text,
+                                             encoding="utf-8")
+        return workload
+
+    def test_build_input_extracts_php_and_attaches_floors(self):
+        floors = json.loads(FLOORS_FILE.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            workload = self._workload(td, "FROM php:8.3.0-fpm\n")
+            doc = runtime_input.build_input(workload, floors)
+        images = doc["dockerfiles"][0]["images"]
+        self.assertEqual(images, [{"image": "php", "tag": "8.3.0-fpm",
+                                   "digest": None}])
+        self.assertIn("php", doc["runtime_floors"]["runtimes"])
+
+    def test_build_input_without_dockerfile_is_not_applicable(self):
+        with tempfile.TemporaryDirectory() as td:
+            workload = Path(td) / "workload"
+            workload.mkdir()
+            doc = runtime_input.build_input(workload, {})
+        self.assertEqual(doc["dockerfiles"], [])
+
+    @unittest.skipUnless(OPA.is_file(), "requires opa in ~/workspace/tools")
+    def test_gate11_verdicts_via_opa_decide(self):
+        floors = json.loads(FLOORS_FILE.read_text(encoding="utf-8"))
+        cases = [
+            ("FROM php:8.3.0\n", 1, "deny", "8.3.36"),
+            ("FROM php:8.4.27\n", 0, "pass", None),
+            ("FROM php:8.1.27\n", 1, "deny", "no fixed upstream release"),
+        ]
+        for dockerfile_text, rc_want, decision, needle in cases:
+            with tempfile.TemporaryDirectory() as td:
+                workload = self._workload(td, dockerfile_text)
+                inp = Path(td) / "runtime-version.input.json"
+                run_cli("runtime_input.py", [
+                    "--workload", str(workload),
+                    "--floors", str(FLOORS_FILE),
+                    "--out", str(inp)])
+                out_dir = Path(td) / "gate-out"
+                out_dir.mkdir()
+                proc = run_cli("opa_decide.py", [
+                    "--opa", str(OPA),
+                    "--bundle", str(REPO_ROOT / "policies" / "rego"),
+                    "--package", "runtime_version",
+                    "--input", str(inp),
+                    "--policy-id", "devsecops.runtime_version",
+                    "--gate", "11", "--out", str(out_dir),
+                    "--commit-sha", COMMIT, "--timestamp", NOW],
+                    expect=None)
+                self.assertEqual(proc.returncode, rc_want, proc.stderr)
+                rec = json.loads((out_dir / "policy-decision-"
+                                  "runtime_version.json").read_text(
+                                      encoding="utf-8"))
+                self.assertEqual(rec["decision"], decision)
+                self.assertEqual(rec["gate"], 11)
+                if needle:
+                    self.assertIn(needle, rec["violations"][0])
 
 
 @unittest.skipUnless(SYFT.is_file() and COSIGN.is_file(),
