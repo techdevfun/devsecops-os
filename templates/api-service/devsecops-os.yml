@@ -1,15 +1,15 @@
-# Cấu hình devsecops-os cho service này — sinh ra từ golden path
-# templates/api-service (M5). Mặc định an toàn pha 1: gate 1 + gate 9
-# chặn ngay; các gate còn lại report-only cho tới khi hiệu chuẩn xong
-# trên lịch sử của chính service này (backtest -> report-only -> enforce).
+# devsecops-os configuration for this service — generated from the golden path
+# templates/api-service (M5). Safe phase 1 defaults: gate 1 + gate 9
+# block immediately; the remaining gates are report-only until calibration is complete
+# on this service's own history (backtest -> report-only -> enforce).
 
 version: 1
 
 organization:
-  name: example-bank            # tên tổ chức (chỉ để ghi vào báo cáo bằng chứng)
-  config_repo: null             # repo cấu hình tập trung (pha 3), để trống ở pha 1
+  name: example-bank            # organization name (only recorded in evidence reports)
+  config_repo: null             # central config repo (phase 3), leave empty in phase 1
 
-# Policy packs sẽ cài ở M2. Ánh xạ là THAM CHIẾU, không phải chứng nhận tuân thủ.
+# Policy packs to be installed at M2. The mapping is a REFERENCE, not a compliance certification.
 policy_packs:
   - iso-27001-2022
   - nist-csf-ssdf
@@ -20,7 +20,7 @@ policy_packs:
 
 gates:
   secret-scanning:
-    mode: block                 # gate duy nhất mặc định chặn ngay (nhiễu thấp)
+    mode: block                 # the only gate blocking by default right away (low noise)
   sast:
     mode: report-only
   sca:
@@ -30,25 +30,25 @@ gates:
   container:
     mode: report-only
   sbom-attestation:
-    mode: report-only           # thiếu SBOM/attestation: cảnh báo ở pha 1
+    mode: report-only           # missing SBOM/attestation: warning in phase 1
   license:
     mode: report-only
   kev-epss:
     mode: report-only
-    kev_block: true             # CVE thuộc CISA KEV: ứng viên chặn đầu tiên khi hiệu chuẩn xong
+    kev_block: true             # CVE in CISA KEV: first blocking candidate once calibration is complete
     epss_threshold: 0.5
   pipeline-hygiene:
-    mode: block                 # action bên thứ ba chưa ghim full SHA -> chặn
-  ai-pr-review:                 # flagship #1 — MẶC ĐỊNH TẮT ở pha 1
-    enabled: false              # chỉ bật khi flagship #1 qua cổng publish riêng của nó
+    mode: block                 # third-party action not pinned to a full SHA -> block
+  ai-pr-review:                 # flagship #1 — OFF BY DEFAULT in phase 1
+    enabled: false              # only enable when flagship #1 passes its own separate publish gate
     mode: report-only
 
 evidence:
-  store: "./.devsecops-os/evidence"   # trong hạ tầng của tổ chức; có thể trỏ S3/object storage
+  store: "./.devsecops-os/evidence"   # inside the organization's infrastructure; may point to S3/object storage
   retention_days: 400
   bundle_manifest: sha256
 
 notifications:
-  # Dùng cơ chế sẵn có của GitHub (check run, PR comment). Webhook là tuỳ
-  # chọn của tổ chức, credential do tổ chức tự quản lý qua secrets của họ.
-  webhook_url_secret: null      # tên secret chứa webhook Slack/Teams/Telegram, để trống = tắt
+  # Use GitHub's built-in mechanisms (check run, PR comment). A webhook is the
+  # organization's optional choice, with credentials managed by the organization via its own secrets.
+  webhook_url_secret: null      # name of the secret containing the Slack/Teams/Telegram webhook, leave empty = off
