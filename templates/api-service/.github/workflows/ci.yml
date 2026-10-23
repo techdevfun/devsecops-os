@@ -1,13 +1,16 @@
-# CI của service sinh ra từ golden path api-service (M5).
+# CI for a service born from the api-service golden path (M5).
 #
-# Mẫu này gọi 10 reusable workflow gates của devsecops-os và gom bằng
-# chứng bằng job evidence-bundle (M4). Giả định pha 1: repo service được
-# tạo từ cây của devsecops-os (template repo của tổ chức chứa cả bộ gates
-# ở .github/workflows/gate-*.yml và gates/local/) — khi tách repo riêng,
-# trỏ `uses:` sang repo hệ thống của tổ chức, nội dung không đổi.
+# This template calls devsecops-os's 10 reusable workflow gates and
+# collects evidence with the evidence-bundle job (M4). Phase 1
+# assumption: the service repo is created from the devsecops-os tree (the
+# organization's template repo contains the full gate set in
+# .github/workflows/gate-*.yml and gates/local/) — when the repo is split
+# out, point `uses:` at the organization's system repo; the content does
+# not change.
 #
-# ĐỔI MỘT CHỖ DUY NHẤT khi tạo service: giá trị workload_path ở dưới
-# (mặc định "." = chính thư mục service nếu service nằm ở gốc repo).
+# CHANGE EXACTLY ONE THING when creating a service: the workload_path
+# value below (default "." = the service directory itself, if the service
+# sits at the repo root).
 name: "Service CI — devsecops-os gates"
 
 on:
@@ -15,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       workload_path:
-        description: "Thư mục của service trong repo"
+        description: "The service's directory in the repo"
         required: false
         type: string
         default: "."
@@ -36,22 +39,23 @@ jobs:
   gate-10: {uses: ./.github/workflows/gate-10-ai-pr-review.yml}
 
   evidence-bundle:
-    # Gom bằng chứng theo đúng mẫu của job evidence-bundle trong
-    # .github/workflows/all-gates.yml của repo hệ thống (M4): tải
-    # artefact KHÔNG gộp (tránh ghi đè record trùng tên), dựng thư mục
-    # lần chạy, đóng bundle kèm manifest SHA-256, tự kiểm chứng.
+    # Collect evidence following the exact pattern of the evidence-bundle
+    # job in the system repo's .github/workflows/all-gates.yml (M4):
+    # download artefacts WITHOUT merging (to avoid overwriting records
+    # with duplicate names), build the run directory, package the bundle
+    # with a SHA-256 manifest, and self-verify.
     needs: [gate-01, gate-02, gate-03, gate-04, gate-05, gate-06, gate-07,
             gate-08, gate-09, gate-10]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: "Tải artefact của mọi gate (không gộp — giữ cấu trúc theo gate)"
+      - name: "Download every gate's artefacts (no merging — keep the per-gate structure)"
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           pattern: "gate-*"
           path: "gate-outputs"
-      - name: "Dựng thư mục lần chạy + đóng bundle + kiểm chứng"
+      - name: "Build the run directory + package the bundle + verify"
         run: |
           mkdir -p evidence-run
           for d in gate-outputs/*/; do
@@ -62,7 +66,7 @@ jobs:
             --out-dir "evidence-bundle" \
             --allow-incomplete
           python3 evidence/verify_bundle.py evidence-bundle
-      - name: "Tải lên evidence bundle"
+      - name: "Upload the evidence bundle"
         if: always()
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
