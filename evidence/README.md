@@ -1,196 +1,196 @@
-# Evidence automation — M4 (đã cài đặt, kiểm chứng cục bộ); ký Cosign + unit test bổ sung tại M5-A2
+# Evidence automation — M4 (installed, verified locally); Cosign signing + additional unit tests at M5-A2
 
-Evidence collector là "gate cuối" của pipeline (blueprint mục 5.2):
-mỗi lần bộ gates chạy xong, collector gom toàn bộ bằng chứng vào một
-**evidence bundle** có manifest SHA-256, kiểm chứng toàn vẹn được
-bằng **một lệnh duy nhất** (tiêu chí nghiệm thu số 4 của blueprint
-mục 3.2). Bằng chứng luôn nằm **trong hạ tầng của tổ chức sử dụng** —
-repo này không lưu trữ bằng chứng của bất kỳ ai; `bundles/` và
-`store/` đã được .gitignore.
+The evidence collector is the "final gate" of the pipeline (blueprint section 5.2):
+each time the gate suite finishes running, the collector gathers all evidence into an
+**evidence bundle** with a SHA-256 manifest, whose integrity can be verified
+with **a single command** (acceptance criterion 4 of blueprint
+section 3.2). Evidence always stays **inside the using organisation's infrastructure** —
+this repository does not store anyone's evidence; `bundles/` and
+`store/` are covered by .gitignore.
 
-## Công cụ
+## Tools
 
-| File | Vai trò |
+| File | Role |
 |---|---|
-| `bundle_tool.py` | Toàn bộ logic: lệnh `collect` (thu thập + đóng bundle, tuỳ chọn `--sign` ký Cosign) và `verify` (kiểm chứng hash + schema + chữ ký khi bundle có khai báo). Python 3, chỉ thư viện chuẩn — không cần cài thêm gói trên runner |
-| `verify_bundle.py` | Lối vào một lệnh cho việc kiểm chứng (gọi `bundle_tool.py verify`) |
-| `tests/test_bundle_tool.py` | Unit test của bundle_tool (xem mục Kiểm thử ở cuối) |
-| `mapping.phase1.json` | Dữ liệu ánh xạ pha 1 (khung → nhóm kiểm soát → policy → gate → loại bằng chứng), chép từ bản đồ pack v1 trong `../policies/README.md` — collector dùng để dựng bảng truy vết trong báo cáo tổng hợp |
+| `bundle_tool.py` | All logic: the `collect` command (gather + package a bundle, with optional `--sign` for Cosign signing) and `verify` (verify hashes + schema + signature when the bundle declares one). Python 3, standard library only — no extra packages needed on the runner |
+| `verify_bundle.py` | Single-command entry point for verification (calls `bundle_tool.py verify`) |
+| `tests/test_bundle_tool.py` | Unit tests for bundle_tool (see the Testing section at the end) |
+| `mapping.phase1.json` | Phase 1 mapping data (framework → control group → policy → gate → evidence type), copied from the pack v1 map in `../policies/README.md` — the collector uses it to build the traceability table in the summary report |
 
-## Cách dùng
+## Usage
 
 ```bash
-# Đóng bundle từ một lần chạy gates (hợp đồng thư mục của M3:
-# evidence/output/<lần chạy>/gate-NN-*/ kèm *.record.json +
-# policy-decision-*.json + disabled-note.txt của gate 10 khi tắt)
+# Package a bundle from a gate run (the M3 directory contract:
+# evidence/output/<run>/gate-NN-*/ with *.record.json +
+# policy-decision-*.json + disabled-note.txt from gate 10 when disabled)
 python3 evidence/bundle_tool.py collect evidence/output/local-clean
 
-# Đóng bundle CÓ ký mật mã (Cosign trên bundle.sha256; cần cosign —
-# công cụ tự tìm qua PATH/COSIGN_BINARY hoặc truyền --cosign)
+# Package a bundle WITH cryptographic signing (Cosign over bundle.sha256; requires cosign —
+# the tool finds it via PATH/COSIGN_BINARY or pass --cosign)
 python3 evidence/bundle_tool.py collect evidence/output/local-clean --sign
 
-# Kiểm chứng một bundle — MỘT lệnh duy nhất (tự kiểm thêm chữ ký
-# khi bundle có khai báo chữ ký; thiếu cosign trên máy = FAIL ồn ào)
+# Verify a bundle — a SINGLE command (also verifies the signature
+# when the bundle declares one; missing cosign on the machine = loud FAIL)
 python3 evidence/verify_bundle.py evidence/bundles/<bundle-id>
 
-# Hoặc chỉ kiểm hash bằng công cụ hệ thống:
+# Or verify hashes only with system tools:
 cd evidence/bundles/<bundle-id> && sha256sum -c bundle.sha256
 ```
 
-## Bộ sinh bằng chứng quyết định/định kỳ (M5-A3)
+## Decision/periodic evidence generators (M5-A3)
 
-`generators.py` sinh các loại bằng chứng không thuộc một cổng CI —
-từ dữ liệu thật của lần chạy và của cây — vào thư mục
-`supplementary-records/` của lần chạy; collector thu chúng như mọi
-record khác (kiểm schema, đưa vào truy vết):
+`generators.py` generates the evidence types that do not belong to a CI gate —
+from real data from the run and from the tree — into the
+`supplementary-records/` directory of the run; the collector gathers them like any
+other record (schema-checked, included in traceability):
 
 ```bash
-# Sinh cả 4 loại cho một lần chạy (trước khi collect):
-python3 evidence/generators.py all --run-dir evidence/output/<lần chạy>
+# Generate all 4 types for a run (before collect):
+python3 evidence/generators.py all --run-dir evidence/output/<run>
 
-# Từng loại: change-record | drift-report | access-review |
-# config-baseline (xem --help). Khai/cập nhật baseline drift:
+# Individual types: change-record | drift-report | access-review |
+# config-baseline (see --help). Declare/update the drift baseline:
 python3 evidence/generators.py write-baseline \
     --workload examples/payments-sample/clean
 ```
 
-- `change-record`: tổng hợp kết quả cổng của chính lần chạy; quyết
-  định do policy `change_record` chạy thật bằng OPA kết luận — lần
-  chạy cục bộ không có phê duyệt PR nên quyết định là **deny** (bằng
-  chứng trung thực, không phải lỗi của bộ sinh).
-- `drift-report`: so cấu hình IaC hiện tại với baseline đã khai tại
+- `change-record`: summarises the gate results of the run itself; the
+  decision is concluded by the `change_record` policy actually run with OPA — a
+  local run has no PR approval, so the decision is **deny** (honest
+  evidence, not a generator error).
+- `drift-report`: compares the current IaC configuration against the declared baseline at
   `baselines/payments-sample.tf-normalized.json`.
-- `access-review-report` / `config-baseline-report`: rà soát quyền
-  workflow + đánh giá policy IaC trên cấu hình hiện tại của cây.
-- `ci-log` không do `generators.py` sinh: **collector tự phát hành**
-  khi lần chạy có file `.log` thật — đóng gói log thành artefact zip
-  tất định và ghi SHA-256 của nó vào record; verify đối chiếu lại.
+- `access-review-report` / `config-baseline-report`: review of workflow
+  permissions + IaC policy evaluation over the tree's current configuration.
+- `ci-log` is not generated by `generators.py`: **the collector publishes it itself**
+  when the run has a real `.log` file — packages the log into a deterministic zip
+  artefact and writes its SHA-256 into the record; verify cross-checks it.
 
-Chế độ mặc định của `collect` là **nghiêm**: record nào sai schema
-M2, gate nào thiếu thư mục/thiếu bằng chứng, lần quét nào có
-`scan-error.json` — collect dừng, nêu tên từng vấn đề, không sinh
-bundle. Cờ `--allow-incomplete` (job CI dùng, chế độ chỉ-thu-thập):
-vẫn sinh bundle, record sai bị tách vào `rejected/` kèm lý do, mọi
-vấn đề được ghi trong báo cáo và bundle mang cờ
-`evidence-incomplete` trong manifest.
+The default mode of `collect` is **strict**: any record that fails the M2 schema,
+any gate missing a directory/missing evidence, any scan that has
+`scan-error.json` — collect stops, names each problem, and does not produce
+a bundle. The `--allow-incomplete` flag (used by the CI job, collect-only mode):
+still produces a bundle, invalid records are separated into `rejected/` with reasons, every
+problem is recorded in the report and the bundle carries the
+`evidence-incomplete` flag in its manifest.
 
-## Cấu trúc một bundle
+## Structure of a bundle
 
 ```
 <bundle>/
-  bundle.json      metadata: định dạng, run id, thời gian, commit SHA
-  summary.md/.json báo cáo tổng hợp: kết quả theo gate, quyết định
-                   policy + lý do chặn nguyên văn, finding secret,
-                   lỗ hổng đã xếp hạng (KEV/EPSS), bảng truy vết cả
-                   14 hàng pha 1 (loại bằng chứng nào có/chưa có và
-                   vì sao), danh sách file không đưa vào bundle
-  records/         mọi evidence record khớp schema M2, giữ nguyên
-                   đường dẫn gate-NN-*/ — cộng một record
-                   control-evidence-index do chính collector sinh
-                   từ dữ liệu thật của lần chạy
-  artifacts/       file phụ trợ mà record tham chiếu (SARIF, tài
-                   liệu SBOM/provenance, đầu vào của policy, ghi chú
-                   gate tắt...) để bundle tự chứa, đọc được độc lập
-  schemas/         bản sao 14 schema M2 — hợp đồng mà bundle đã
-                   được kiểm theo, để verify không phụ thuộc repo
-  rejected/        (chỉ khi --allow-incomplete) record sai schema,
-                   giữ nguyên bản kèm lý do trong manifest
-  manifest.json    từng file trong bundle (trừ manifest.json và
-                   bundle.sha256): đường dẫn, SHA-256, kích thước,
-                   vai trò; với record còn có loại bằng chứng, gate,
-                   commit SHA, mốc thời gian và hàng ánh xạ liên quan;
-                   khi bundle được ký, manifest có thêm trường
-                   `signature` khai báo chữ ký + vân tay khoá công khai
-  bundle.sha256    bao phủ MỌI file còn lại kể cả manifest.json —
-                   tương thích `sha256sum -c`
-  bundle.sigstore.json  (chỉ khi ký bằng --sign) chữ ký Cosign dạng
-                   Sigstore bundle trên chính bundle.sha256
-  cosign.pub       (chỉ khi ký bằng --sign) khoá công khai của chữ
-                   ký trên — hai file này CỐ Ý đứng ngoài manifest
-                   và ngoài bundle.sha256 vì chúng chứng thực
+  bundle.json      metadata: format, run id, time, commit SHA
+  summary.md/.json summary report: results by gate, policy
+                   decisions + verbatim blocking reasons, secret findings,
+                   ranked vulnerabilities (KEV/EPSS), traceability table for all
+                   14 phase 1 rows (which evidence types are present/missing and
+                   why), list of files not included in the bundle
+  records/         every evidence record matching the M2 schema, preserving
+                   the gate-NN-*/ path — plus one
+                   control-evidence-index record generated by the collector itself
+                   from real data from the run
+  artifacts/       auxiliary files referenced by records (SARIF,
+                   SBOM/provenance documents, policy inputs, notes for
+                   disabled gates...) so the bundle is self-contained and independently readable
+  schemas/         copies of the 14 M2 schemas — the contract the bundle was
+                   checked against, so verify does not depend on the repo
+  rejected/        (only with --allow-incomplete) records failing the schema,
+                   preserved as-is with reasons in the manifest
+  manifest.json    every file in the bundle (except manifest.json and
+                   bundle.sha256): path, SHA-256, size,
+                   role; for records also evidence type, gate,
+                   commit SHA, timestamps and related mapping rows;
+                   when the bundle is signed, the manifest has an additional
+                   `signature` field declaring the signature + public key fingerprint
+  bundle.sha256    covers EVERY remaining file including manifest.json —
+                   compatible with `sha256sum -c`
+  bundle.sigstore.json  (only when signed with --sign) Cosign signature in
+                   Sigstore bundle form over bundle.sha256 itself
+  cosign.pub       (only when signed with --sign) the public key of the
+                   signature above — these two files INTENTIONALLY stand outside the manifest
+                   and outside bundle.sha256 because they attest
                    bundle.sha256
 ```
 
-An toàn theo thiết kế: **vật liệu khoá riêng không bao giờ vào
-bundle** (gate 6 sinh `cosign.key` tạm khi chạy cục bộ — collector
-loại nó và ghi rõ trong báo cáo).
+Safe by design: **private key material never enters the
+bundle** (gate 6 generates a temporary `cosign.key` when running locally — the collector
+excludes it and states this clearly in the report).
 
-## Ký mật mã cho bundle (M5-A2)
+## Cryptographic signing for bundles (M5-A2)
 
-`collect --sign` ký `bundle.sha256` bằng Cosign (`sign-blob`, định
-dạng Sigstore bundle, signing-config offline của repo — cùng mẫu
-với gate 6). Vì `bundle.sha256` bao phủ mọi file còn lại kể cả
-manifest.json, chữ ký này gián tiếp trói toàn bộ nội dung bundle:
-kẻ sửa một record *rồi tính lại cả hash lẫn manifest cho nhất
-quán* vẫn bị verify bắt ở lớp chữ ký. Khai báo chữ ký (gồm vân tay
-SHA-256 của khoá công khai) nằm trong `manifest.json` +
-`bundle.json` — cả hai đều được `bundle.sha256` bao phủ — và
-`verify` **bắt buộc** kiểm chữ ký khi có khai báo: thiếu file chữ
-ký, thiếu khoá công khai, khoá bị thay, chữ ký sai, hoặc máy kiểm
-không có cosign đều là FAIL ồn ào, không âm thầm hạ xuống kiểm hash.
+`collect --sign` signs `bundle.sha256` with Cosign (`sign-blob`,
+Sigstore bundle format, the repo's offline signing-config — the same pattern
+as gate 6). Because `bundle.sha256` covers every remaining file including
+manifest.json, this signature indirectly binds the entire bundle content:
+anyone who edits a record *and then recomputes both hashes and the manifest consistently*
+is still caught by verify at the signature layer. The signature declaration (including the
+SHA-256 fingerprint of the public key) lives in `manifest.json` +
+`bundle.json` — both are covered by `bundle.sha256` — and
+`verify` **requires** signature verification when a declaration is present: a missing signature
+file, a missing public key, a replaced key, a wrong signature, or a verifying machine
+without cosign are all loud FAILs, never a silent downgrade to hash-only checking.
 
-**Giới hạn trung thực của chữ ký cục bộ** (khác với keyless OIDC
-trên CI — việc thuộc M5-B):
+**Honest limits of local signing** (different from keyless OIDC
+on CI — that work belongs to M5-B):
 
-- Khoá là khoá tạm theo lần chạy, sinh trong thư mục tạm **ngoài
-  cây** và **huỷ ngay sau khi ký**; khoá riêng không vào bundle và
-  không nằm lại trong cây. Hệ quả: chữ ký chứng minh "nội dung này
-  khớp với thời điểm ký", nhưng danh tính người ký chỉ là
-  `local:cosign-ephemeral-key` — chưa gắn với danh tính OIDC của
-  workflow và **không có transparency log** (Rekor) như ký keyless
-  trên CI.
-- `cosign.pub` đi kèm trong bundle nên tự nó không phải neo tin
-  cậy: kẻ sửa được *toàn bộ* bundle cũng có thể ký lại bằng khoá
-  của họ và thay `cosign.pub`. Giá trị chống ký-lại chỉ có khi
-  người kiểm **đối chiếu vân tay khoá công khai
-  (`signature.public_key_sha256` trong manifest) với một bản ghi
-  ngoài bundle** — ví dụ hồ sơ phát hành hoặc log CI — trước khi
-  tin. Neo tin cậy đầy đủ (chứng thư OIDC + Rekor tra cứu công
-  khai) là phần của ký keyless trên CI ở M5-B.
+- The key is a temporary per-run key, generated in a temporary directory **outside
+  the tree** and **destroyed immediately after signing**; the private key does not enter the bundle and
+  does not remain in the tree. Consequence: the signature proves "this content
+  matches the moment of signing", but the signer's identity is only
+  `local:cosign-ephemeral-key` — not yet bound to the workflow's OIDC identity
+  and **without a transparency log** (Rekor) like keyless signing
+  on CI.
+- `cosign.pub` ships inside the bundle, so by itself it is not a trust
+  anchor: anyone who can edit the *entire* bundle could also re-sign with their
+  own key and replace `cosign.pub`. The anti-re-signing value only exists when
+  the verifier **compares the public key fingerprint
+  (`signature.public_key_sha256` in the manifest) against a record
+  outside the bundle** — for example the release dossier or the CI log — before
+  trusting it. A full trust anchor (OIDC certificate + public Rekor
+  lookup) is part of keyless signing on CI in M5-B.
 
-## Truy vết tuân thủ (ánh xạ tham chiếu, không phải chứng nhận)
+## Compliance traceability (reference mapping, not a certification)
 
-Báo cáo tổng hợp của mỗi bundle cho thấy từng hàng pha 1 của pack
-v1 có bằng chứng thật từ gate nào. Trạng thái sau vòng M5-A3
-(2026-10-22): **13/14 hàng đầy đủ**. Bốn loại bằng chứng dạng quyết
-định/định kỳ (`change-record`, `drift-report`,
-`config-baseline-report`, `access-review-report`) được sinh bởi
-`generators.py` từ dữ liệu thật của lần chạy/cây và `ci-log` do
-chính collector phát hành kèm hash của log lần chạy — chứng minh
-bằng bundle `local-clean-m5a3` (verify PASS, truy vết 13/14). Hàng
-duy nhất còn một phần là `row-05`: `pr-review-report` chỉ có khi
-gate 10 bật — gate 10 đang tắt theo thiết kế pha 1.
+The summary report of each bundle shows, for each phase 1 row of pack
+v1, which gate produced real evidence. Status after the M5-A3 round
+(2026-10-22): **13/14 rows complete**. The four decision/periodic
+evidence types (`change-record`, `drift-report`,
+`config-baseline-report`, `access-review-report`) are generated by
+`generators.py` from real run/tree data and `ci-log` is
+published by the collector itself with the hash of the run log — proven
+by bundle `local-clean-m5a3` (verify PASS, traceability 13/14). The
+only remaining partial row is `row-05`: `pr-review-report` exists only when
+gate 10 is enabled — gate 10 is off by design in phase 1.
 
-## Tích hợp CI
+## CI integration
 
-Job `evidence-bundle` trong `.github/workflows/all-gates.yml` chạy
-sau cả 10 gate (`if: always()`): tải artefact của từng gate (không
-gộp, giữ cấu trúc `gate-NN-*/`), dựng thư mục lần chạy, chạy
-collector ở chế độ chỉ-thu-thập, tự kiểm chứng bundle bằng đúng một
-lệnh ở trên, rồi tải bundle lên làm artefact. Job này **không đổi
-quyết định chặn của bất kỳ gate nào** và gate 10 giữ mặc định tắt.
+The `evidence-bundle` job in `.github/workflows/all-gates.yml` runs
+after all 10 gates (`if: always()`): downloads each gate's artefacts (not
+merged, preserving the `gate-NN-*/` structure), builds the run directory, runs
+the collector in collect-only mode, self-verifies the bundle with the single
+command above, then uploads the bundle as an artefact. This job **does not change
+the blocking decision of any gate** and gate 10 stays off by default.
 
-## Kiểm thử
+## Testing
 
-Unit test cho `bundle_tool.py` nằm ở `tests/test_bundle_tool.py`,
-cho bộ sinh ở `tests/test_generators.py` (fixture lần chạy tối
-thiểu tự sinh, không cần chạy gates thật):
+Unit tests for `bundle_tool.py` are in `tests/test_bundle_tool.py`,
+and for the generators in `tests/test_generators.py` (minimal self-generated run fixtures,
+no need to run the real gates):
 
 ```bash
 python3 -m unittest discover -s evidence/tests -v
 ```
 
-23 test (sau M5-A3): 8 test gốc của collector — collect trên
-fixture tối thiểu + verify PASS; gate 10 disabled không bị tính là
-thiếu bằng chứng; record sai schema ở chế độ nghiêm (dừng + nêu
-tên) và ở `--allow-incomplete` (vào `rejected/` + cờ
-`evidence-incomplete`); verify FAIL khi sửa 1 byte; và 3 test chữ ký
-bằng cosign thật (bundle ký verify PASS cả hash + chữ ký; sửa nội
-dung kèm tính lại hash nhất quán vẫn FAIL ở lớp chữ ký; thay chữ ký
-bằng chữ ký của bundle khác → FAIL) — cộng 15 test M5-A3: 4 bộ sinh
-(record khớp schema, quyết định policy chạy thật bằng OPA, drift
-phát hiện rule mở 0.0.0.0/0 so với baseline, rà soát quyền trên
-chính cây repo) và 2 mở rộng collector (record phụ trợ được thu +
-truy vết; ci-log phát hành kèm đối chiếu chéo hash — sửa record cho
-"nhất quán giả" vẫn bị bắt). Nhóm test chữ ký tự bỏ qua khi máy
-không có cosign.
+23 tests (after M5-A3): the collector's 8 original tests — collect on
+a minimal fixture + verify PASS; disabled gate 10 not counted as
+missing evidence; a schema-invalid record in strict mode (stops + names
+it) and in `--allow-incomplete` mode (goes to `rejected/` + the
+`evidence-incomplete` flag); verify FAILs when 1 byte is edited; and 3 signature tests
+with real cosign (a signed bundle verifies PASS on both hash + signature; editing content
+with consistently recomputed hashes still FAILs at the signature layer; replacing the signature
+with another bundle's signature → FAIL) — plus 15 M5-A3 tests: the 4 generators
+(records match the schema, policy decisions actually run with OPA, drift
+detects a rule open to 0.0.0.0/0 versus the baseline, permission review over
+the repo tree itself) and 2 collector extensions (supplementary records are collected +
+traced; ci-log published with cross-checked hashes — editing a record for
+"false consistency" is still caught). The signature test group skips itself when the machine
+has no cosign.
