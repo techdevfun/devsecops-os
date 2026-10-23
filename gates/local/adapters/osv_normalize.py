@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Chuẩn hoá đầu ra JSON của osv-scanner (gate 3) thành:
+"""Normalize osv-scanner's JSON output (gate 3) into:
   { "dependencies": [...], "vulnerabilities": [...] }
-trong đó mỗi vulnerability có id CVE (ưu tiên alias CVE), package,
-affected dạng chuỗi ràng buộc của pack (">=a,<b"), fixed (bản vá đầu
-tiên). in_kev/epss do gate 8 (kev_epss_enrich.py) điền từ feed thật.
+where each vulnerability has a CVE id (preferring the CVE alias), package,
+affected as the pack's constraint string (">=a,<b"), and fixed (the first fix
+version). in_kev/epss are filled in by gate 8 (kev_epss_enrich.py) from the real feeds.
 """
 import argparse
 import json
@@ -58,9 +58,9 @@ def main() -> int:
                     "affected": affected, "fixed": fixed,
                     "summary": (v.get("summary") or "")[:200],
                 }
-                # OSV thường trả cùng một CVE qua nhiều nguồn (PYSEC +
-                # GHSA) — khử trùng theo (CVE, package, version), ưu
-                # tiên bản ghi có fixed version.
+                # OSV often returns the same CVE via multiple sources (PYSEC +
+                # GHSA) — deduplicate by (CVE, package, version), preferring
+                # the record that has a fixed version.
                 dup = next((x for x in vulns
                             if (x["id"], x["package"], x["version"])
                             == (cve, entry["package"], entry["version"])),
