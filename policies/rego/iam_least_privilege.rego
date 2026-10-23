@@ -1,8 +1,8 @@
-# iam_least_privilege — không policy IAM nào được cấp Action "*" hoặc
-# service wildcard ("s3:*"...) trên Resource "*", và không gắn policy
-# quản trị toàn quyền (AdministratorAccess) cho workload.
+# iam_least_privilege — no IAM policy may grant Action "*" or a
+# service wildcard ("s3:*"...) on Resource "*", and no full-admin
+# managed policy (AdministratorAccess) may be attached to a workload.
 #
-# Input (JSON chuẩn hoá):
+# Input (normalised JSON):
 #   { "iam_policies": [ { "name": "...", "attached_to": "...",
 #       "statements": [ {"effect": "Allow", "actions": ["s3:GetObject"],
 #                        "resources": ["arn:..."]} ] } ],
@@ -17,13 +17,13 @@ deny contains msg if {
 	is_wildcard_action(action)
 	some res in st.resources
 	res == "*"
-	msg := sprintf("IAM policy %q cap action wildcard %q tren Resource \"*\" — vi pham least privilege (SOC 2 CC6.1, PCI DSS Req 7/8 tham chieu, ISO A.5.15)", [p.name, action])
+	msg := sprintf("IAM policy %q grants wildcard action %q on Resource \"*\" — violates least privilege (SOC 2 CC6.1, PCI DSS Req 7/8 reference, ISO A.5.15)", [p.name, action])
 }
 
 deny contains msg if {
 	a := input.managed_policy_attachments[_]
 	endswith(a.policy_arn, "AdministratorAccess")
-	msg := sprintf("role %q gan policy AdministratorAccess — cam cho workload (least privilege)", [a.role])
+	msg := sprintf("role %q has the AdministratorAccess policy attached — forbidden for workloads (least privilege)", [a.role])
 }
 
 is_wildcard_action(a) if a == "*"
