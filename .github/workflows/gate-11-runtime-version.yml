@@ -1,0 +1,44 @@
+# Reusable workflow — Gate 11: Runtime version floor (policy
+# devsecops.runtime_version over the pack data in
+# policies/data/runtime_floors.json). The actual run logic lives in
+# gates/local/gate-11.sh (shared with local runs); this workflow only
+# checks out, downloads the pinned tools and calls that script.
+# See gates/README.md.
+name: "Gate 11 — runtime-version"
+
+on:
+  workflow_call:
+    inputs:
+      workload_path:
+        description: "Workload directory to check (in this repo)"
+        required: false
+        type: string
+        default: "examples/payments-sample/clean"
+
+permissions:
+  contents: read
+
+jobs:
+  gate-11:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: "Download gate toolset (pinned version + sha256)"
+        run: bash gates/local/fetch_tools.sh
+        env:
+          TOOLS_DIR: "${{ runner.temp }}/devsecops-tools"
+      - name: "Run gate 11"
+        env:
+          REPO_ROOT: "${{ github.workspace }}"
+          WORKLOAD: "${{ github.workspace }}/${{ inputs.workload_path }}"
+          OUT_ROOT: "${{ github.workspace }}/evidence/output/ci"
+          COMMIT_SHA: "${{ github.sha }}"
+          TOOLS_DIR: "${{ runner.temp }}/devsecops-tools"
+        run: bash gates/local/gate-11.sh
+      - name: "Upload evidence for gate 11"
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: "gate-11-runtime-version"
+          path: "evidence/output/ci/gate-11-runtime-version"
+          if-no-files-found: warn
