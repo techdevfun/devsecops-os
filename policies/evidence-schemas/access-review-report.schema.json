@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "devsecops-os evidence: access-review-report",
-  "description": "Báo cáo quyền theo repo/môi trường theo kỳ: quyền token workflow, IAM, OIDC (SOC 2 CC6.1/CC6.6).",
+  "description": "Per-period access report by repo/environment: workflow token permissions, IAM, OIDC (SOC 2 CC6.1/CC6.6).",
   "type": "object",
   "required": [
     "evidence_type",
