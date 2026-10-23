@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Unit test cho các adapter của gates (gates/local/adapters).
+"""Unit tests for the gate adapters (gates/local/adapters).
 
-Chạy từ gốc repo:
+Run from the repo root:
 
     python3 -m unittest discover -s gates/local/tests -v
 
-Ba tầng phủ:
-  1. Hàm thuần của module (import trực tiếp): osv_normalize,
+Three coverage tiers:
+  1. Pure module functions (direct import): osv_normalize,
      syft_license_input, tf_parse_input, kev_epss_enrich.
-  2. CLI qua subprocess với fixture JSON/YAML tối thiểu viết tay:
+  2. CLI via subprocess with minimal hand-written JSON/YAML fixtures:
      gitleaks_input, image_block_check, workflow_input,
-     kev_epss_enrich, opa_decide (cần binary opa ở ~/workspace/tools).
-  3. Chuỗi gate 6 thật (provenance_build: Syft + Cosign trên thư
-     mục workload tối thiểu) — tự bỏ qua khi thiếu binary.
+     kev_epss_enrich, opa_decide (requires the opa binary in ~/workspace/tools).
+  3. The real gate 6 chain (provenance_build: Syft + Cosign over a minimal
+     workload directory) — skipped automatically when the binaries are missing.
 """
 
 import gzip
@@ -337,7 +337,7 @@ class WorkflowInputTests(unittest.TestCase):
             self.assertFalse(plain["jobs"][0]["oidc"])
 
 
-@unittest.skipUnless(OPA.is_file(), "không tìm thấy opa")
+@unittest.skipUnless(OPA.is_file(), "opa not found")
 class OpaDecideTests(unittest.TestCase):
     def _run(self, td, fixture, package, gate, policy_id=None):
         pid = policy_id or f"devsecops.{package}"
@@ -378,14 +378,14 @@ class OpaDecideTests(unittest.TestCase):
 
 
 @unittest.skipUnless(SYFT.is_file() and COSIGN.is_file(),
-                     "cần syft + cosign ở ~/workspace/tools")
+                     "requires syft + cosign in ~/workspace/tools")
 class ProvenanceBuildTests(unittest.TestCase):
     def test_full_chain_on_tiny_workload(self):
         with tempfile.TemporaryDirectory() as td:
             td = Path(td)
             workload = td / "workload"
             workload.mkdir()
-            (workload / "hello.txt").write_text("xin chào\n",
+            (workload / "hello.txt").write_text("hello\n",
                                                 encoding="utf-8")
             out = td / "out"
             run_cli("provenance_build.py", [
