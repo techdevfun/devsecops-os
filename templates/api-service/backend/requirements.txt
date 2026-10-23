@@ -1,4 +1,4 @@
 # example-service API dependencies — pinned, current, patched.
-# Khi nâng phiên bản: chạy lại gate 3 (SCA) + gate 8 (KEV/EPSS) trước merge.
+# When bumping a version: re-run gate 3 (SCA) + gate 8 (KEV/EPSS) before merging.
 starlette==1.9.0
 uvicorn==0.54.0
