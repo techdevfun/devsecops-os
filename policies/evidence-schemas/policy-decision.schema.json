@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "devsecops-os evidence: policy-decision",
-  "description": "Quyết định deny/allow của một policy OPA/Kyverno trong một lần chạy gate — bằng chứng gốc cho hầu hết các hàng pha 1.",
+  "description": "Deny/allow decision of an OPA/Kyverno policy in one gate run — the source evidence for most phase-1 rows.",
   "type": "object",
   "required": [
     "evidence_type",
@@ -17,22 +17,22 @@
       "const": "policy-decision"
     },
     "policy_id": {
-      "description": "id policy trong pack (vd devsecops.network_exposure)"
+      "description": "policy id in the pack (e.g. devsecops.network_exposure)"
     },
     "engine": {
       "description": "opa|kyverno|checker"
     },
     "gate": {
-      "description": "gate tiêu thụ (blueprint mục 5)"
+      "description": "consuming gate (blueprint section 5)"
     },
     "decision": {
       "description": "pass|deny"
     },
     "violations": {
-      "description": "mảng thông điệp vi phạm (rỗng khi pass)"
+      "description": "array of violation messages (empty when passing)"
     },
     "inputs_digest": {
-      "description": "SHA-256 của input đã đánh giá"
+      "description": "SHA-256 of the evaluated input"
     }
   }
 }
