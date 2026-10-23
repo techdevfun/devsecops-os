@@ -1,4 +1,4 @@
-=== SMOKE: backend chay that ===
+=== SMOKE: backend actually running ===
 INFO:     Started server process [28425]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
@@ -16,7 +16,7 @@ INFO:     Finished server process [28425]
 [90m11:03AM[0m [32mINF[0m [1mno leaks found[0m
 [gitleaks_input] 0 finding -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-01-secret/secret-findings.input.json
 [record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-01-secret/sarif-report.record.json
-[opa_decide] devsecops.secret_findings (gate 1): PASS (0 vi phạm)
+[opa_decide] devsecops.secret_findings (gate 1): PASS (0 violations)
 [dogfood] gate-01 rc=0
 [gate 02] sast — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
 [gate 02] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-02-sast
@@ -25,7 +25,7 @@ INFO:     Finished server process [28425]
 [dogfood] gate-02 rc=0
 [gate 03] sca — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
 [gate 03] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-03-sca
-[gate 03] lần thử 1: osv-scanner exit=1, 3 package được quét
+[gate 03] attempt 1: osv-scanner exit=1, 3 packages scanned
 [osv_normalize] 3 dependency, 4 vulnerability -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-03-sca/normalized.json
     - anyio==4.9.0: CVE-2026-64847 (PYSEC-2026-4024) affected=>=0,<4.14.2 fixed=4.14.2
     - anyio==4.9.0: CVE-2026-63374 (PYSEC-2026-4025) affected=>=0,<4.14.2 fixed=4.14.2
@@ -39,38 +39,38 @@ INFO:     Finished server process [28425]
 [gate 04] trivy config: 8 misconfiguration (report-only)
 [record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-04-iac/sarif-report.record.json
 [tf_parse_input] 2 SG, 1 storage, 1 IAM attachment -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-04-iac/tf-normalized.input.json
-[opa_decide] devsecops.network_exposure (gate 4): PASS (0 vi phạm)
-[opa_decide] devsecops.storage_encryption (gate 4): PASS (0 vi phạm)
-[opa_decide] devsecops.iam_least_privilege (gate 4): PASS (0 vi phạm)
+[opa_decide] devsecops.network_exposure (gate 4): PASS (0 violations)
+[opa_decide] devsecops.storage_encryption (gate 4): PASS (0 violations)
+[opa_decide] devsecops.iam_least_privilege (gate 4): PASS (0 violations)
 [record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-04-iac/iac-assessment.record.json
 [dogfood] gate-04 rc=0
 [gate 05] container — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
 [gate 05] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-05-container
 [gate 05] base image: python:3.13-slim
 [record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-05-container/sarif-report.record.json
-[feeds] tải CISA KEV catalog...
-[feeds] tải FIRST EPSS scores...
-[image_block_check] tổng 170 lỗ hổng {'LOW': 61, 'HIGH': 48, 'MEDIUM': 60, 'UNKNOWN': 1}; thuộc nhóm chặn (CRITICAL+fixed+KEV): 0
+[feeds] downloading CISA KEV catalog...
+[feeds] downloading FIRST EPSS scores...
+[image_block_check] total 170 vulnerabilities {'LOW': 61, 'HIGH': 48, 'MEDIUM': 60, 'UNKNOWN': 1}; in blocking group (CRITICAL+fixed+KEV): 0
 [gate 05] base_image input: [{'image': 'python', 'tag': '3.13-slim', 'digest': None}]
-[opa_decide] devsecops.base_image (gate 5): PASS (0 vi phạm)
-[gate 05] không có CVE thuộc nhóm chặn CRITICAL+fixed+KEV
+[opa_decide] devsecops.base_image (gate 5): PASS (0 violations)
+[gate 05] no CVE in blocking group CRITICAL+fixed+KEV
 [dogfood] gate-05 rc=0
 [gate 06] sbom-attestation — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
 [gate 06] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-06-sbom-attestation
 [provenance] artefact payments-sample-checkout-sample.tar.gz digest sha256:e553378c0dc308d570afc6f9723a1351e477721e0ab6a74a0d105b34d279ab22
 [provenance] SBOM CycloneDX: 17 components
-[provenance] cosign sign-blob + verify-blob (bundle, offline, không tlog): OK
-[provenance] records + policy input đã ghi
-[opa_decide] devsecops.provenance (gate 6): PASS (0 vi phạm)
+[provenance] cosign sign-blob + verify-blob (bundle, offline, no tlog): OK
+[provenance] records + policy input written
+[opa_decide] devsecops.provenance (gate 6): PASS (0 violations)
 [dogfood] gate-06 rc=0
 [gate 07] license — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
 [gate 07] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-07-license
 [syft_license_input] 17 component-license -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-07-license/license.input.json
-[opa_decide] devsecops.license_policy (gate 7): PASS (0 vi phạm)
+[opa_decide] devsecops.license_policy (gate 7): PASS (0 violations)
 [dogfood] gate-07 rc=0
 [gate 08] kev-epss — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
 [gate 08] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-08-kev-epss
-[kev_epss] 174 lỗ hổng đã xếp hạng: 0 block, 174 issue (KEV catalog 2026.10.21, EPSS v2026.06.15)
+[kev_epss] 174 vulnerabilities ranked: 0 block, 174 issue (KEV catalog 2026.10.21, EPSS v2026.06.15)
     - CVE-2026-64847 anyio==4.9.0: in_kev=False epss=0.00156 -> issue
     - CVE-2026-63374 anyio==4.9.0: in_kev=False epss=0.00289 -> issue
     - CVE-2025-43859 h11==0.9.0: in_kev=False epss=0.00584 -> issue
@@ -245,25 +245,25 @@ INFO:     Finished server process [28425]
     - CVE-2026-97687 urllib3==2.7.0: in_kev=False epss=0.00206 -> issue
     - CVE-2026-97689 urllib3==2.7.0: in_kev=False epss=0.00335 -> issue
     - CVE-2026-97688 urllib3==2.7.0: in_kev=False epss=0.00291 -> issue
-[opa_decide] devsecops.dependency_kev (gate 8): PASS (0 vi phạm)
+[opa_decide] devsecops.dependency_kev (gate 8): PASS (0 violations)
 [dogfood] gate-08 rc=0
 [gate 09] pipeline-hygiene — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
 [gate 09] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-09-pipeline-hygiene
 [workflow_input] 11 workflow, gates_enabled=['secret', 'sast', 'sca', 'iac', 'container', 'sbom', 'license', 'kev', 'pipeline', 'ai-pr-review'] -> /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-09-pipeline-hygiene/workflows.input.json
-[opa_decide] devsecops.pipeline_policy (gate 9): PASS (0 vi phạm)
+[opa_decide] devsecops.pipeline_policy (gate 9): PASS (0 violations)
 [record] /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-09-pipeline-hygiene/pipeline-config-verification.record.json
 [dogfood] gate-09 rc=0
 [gate 10] ai-pr-review — workload: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/examples/checkout-sample
 [gate 10] tools: /home/hatch/workspace/tools | out: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/output/local-checkout-sample/gate-10-ai-pr-review
-[gate 10] TẮT (mặc định pha 1) — flagship #1 chưa publish; vị trí cắm ở tầng PR giữ trống theo giao diện check-run/SARIF.
+[gate 10] OFF (phase-1 default) — flagship #1 not published yet; the PR-layer plug-in slot is kept empty per the check-run/SARIF interface.
 [dogfood] gate-10 rc=0
 Bundle: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/local-checkout-sample
-  run=local-checkout-sample  trạng thái=complete  records=20 (gồm 1 do collector sinh)  artefact=18  bị loại=0
-  gate chặn: không  gate tắt: [10]  truy vết đầy đủ: 6/14 hàng pha 1
-  Kiểm chứng: python3 evidence/verify_bundle.py /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/local-checkout-sample
+  run=local-checkout-sample  status=complete  records=20 (including 1 generated by the collector)  artefact=18  excluded=0
+  blocking gate: none  disabled gate: [10]  full traceability: 6/14 phase-1 rows
+  Verification: python3 evidence/verify_bundle.py /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/local-checkout-sample
 [dogfood] bundle-collect rc=0
 Bundle: /home/hatch/workspace/github-repo-factory/repos/devsecops-os/evidence/bundles/local-checkout-sample
-  file được kiểm hash: 56 · record được kiểm schema: 20
-KẾT QUẢ: PASS — mọi hash khớp manifest, mọi record khớp schema M2
+  files hash-checked: 56 · records schema-checked: 20
+RESULT: PASS — all hashes match the manifest, all records match the M2 schema
 [dogfood] bundle-verify rc=0
 [dogfood] DONE total=100s
