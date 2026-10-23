@@ -1,13 +1,16 @@
-# verify-image-signatures — ClusterPolicy Kyverno (verifyImages): chỉ
-# nhận image đã ký keyless bằng danh tính OIDC của workflow thuộc tổ
-# chức VÀ có SLSA provenance attestation khớp. Đây là điểm thực thi ở
-# tầng đích của policy provenance (policies/rego/provenance.rego sinh
-# quyết định phía CI; Kyverno chặn ở admission).
+# verify-image-signatures — Kyverno ClusterPolicy (verifyImages):
+# only accepts images signed keyless with the OIDC identity of a
+# workflow belonging to the organisation AND with a matching SLSA
+# provenance attestation. This is the destination-side enforcement
+# point of the provenance policy (policies/rego/provenance.rego
+# produces the CI-side decision; Kyverno blocks at admission).
 #
-# Bản pack này chính thức hoá mẫu M1 ở docs/examples/kyverno-verify-images.yaml.
-# Trước khi dùng PHẢI thay: <OWNER>/<REPO>, registry và mẫu tên image.
-# LƯU Ý KIỂM CHỨNG: rule verifyImages cần cluster + Rekor/Cosign để chạy
-# thật; ở M2 chỉ kiểm chứng parse + cấu trúc (xem báo cáo M2).
+# This pack formalises the M1 sample in docs/examples/kyverno-verify-images.yaml.
+# Before use you MUST replace: <OWNER>/<REPO>, the registry and the
+# image name pattern.
+# VERIFICATION NOTE: verifyImages rules need a cluster + Rekor/Cosign
+# to run for real; in M2 only parsing + structure are verified (see
+# the M2 report).
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
