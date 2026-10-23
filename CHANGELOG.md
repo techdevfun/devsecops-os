@@ -1,106 +1,118 @@
-# Nhật ký thay đổi (CHANGELOG)
+# Changelog
 
-Mọi thay đổi đáng chú ý của devsecops-os được ghi tại đây. Định dạng
-theo [Keep a Changelog](https://keepachangelog.com/), phiên bản theo
-[SemVer](https://semver.org/). Dự án **chưa phát hành công khai**
-— các mục dưới đây là mốc hoàn thiện cục bộ của pha 1, phục vụ hồ sơ
-phát hành (`release/RELEASE-DOSSIER.md`).
+All notable changes to devsecops-os are recorded here. The format
+follows [Keep a Changelog](https://keepachangelog.com/), and versions
+follow [SemVer](https://semver.org/). The project has **not yet been
+publicly released** — the entries below are local completion
+milestones for phase 1, serving the release dossier
+(`release/RELEASE-DOSSIER.md`).
 
-## [Chưa phát hành] — vòng hoàn thiện cục bộ M5-A3 (2026-10-22)
+## [Unreleased] — local completion round M5-A3 (2026-10-22)
 
-### Thêm
+### Added
 
-- **Bộ sinh bằng chứng quyết định/định kỳ** `evidence/generators.py`
-  (chỉ thư viện chuẩn): sinh 4 loại record còn thiếu của bản đồ pha 1
-  từ dữ liệu thật — `change-record` (từ kết quả các cổng của một lần
-  chạy, kèm quyết định policy `change_record` chạy thật bằng OPA),
-  `drift-report` (chênh lệch cấu hình IaC so với baseline đã khai,
-  kèm quyết định `drift_control`), `access-review-report` (rà soát
-  quyền của chính các workflow trong cây) và
-  `config-baseline-report` (đánh giá các policy IaC trên cấu hình
-  hiện tại). Baseline drift được khai tại
+- **Decision/periodic evidence generator set** `evidence/generators.py`
+  (standard library only): generates the 4 record types still missing
+  from the phase-1 map from real data — `change-record` (from the gate
+  results of a run, together with the `change_record` policy decision
+  run for real with OPA), `drift-report` (IaC configuration drift
+  against the declared baseline, together with the `drift_control`
+  decision), `access-review-report` (a review of the permissions of
+  the workflows in the tree themselves) and
+  `config-baseline-report` (evaluation of the IaC policies against
+  the current configuration). The drift baseline is declared at
   `evidence/baselines/payments-sample.tf-normalized.json`.
-- Collector (`evidence/bundle_tool.py` 1.2.0): quét thêm thư mục
-  `supplementary-records/` của lần chạy (kiểm schema như record của
-  cổng) và **tự phát hành record `ci-log`** — đóng gói toàn bộ log
-  của lần chạy thành artefact zip tất định kèm SHA-256; bước verify
-  đối chiếu chéo hash khai trong record với artefact trong bundle.
-  Truy vết bản đồ pha 1 đạt **13/14 hàng đầy đủ** (còn `row-05` một
-  phần vì cổng 10 tắt theo thiết kế).
-- Kiểm thử: `evidence/tests/test_generators.py` (15 test: bộ sinh +
-  mở rộng collector) và `gates/local/tests/test_adapters.py`
-  (13 test cho các adapter của cổng, gồm chuỗi SBOM + ký Cosign thật
-  trên workload tối thiểu).
-- `CONTRIBUTING.md`, mẫu issue trong `.github/ISSUE_TEMPLATE/`,
-  mục xử lý sự cố lộ secret trong `SECURITY.md`.
-- Bản nháp bài giới thiệu dev.to (`release/devto-article-draft.md`)
-  — chưa đăng, chờ cổng phát hành.
+- Collector (`evidence/bundle_tool.py` 1.2.0): also scans the run's
+  `supplementary-records/` directory (schema-checked like a gate
+  record) and **self-issues a `ci-log` record** — packaging the run's
+  entire log into a deterministic zip artefact with SHA-256; the
+  verify step cross-checks the hash declared in the record against
+  the artefact in the bundle. Phase-1 map traceability reaches
+  **13/14 full rows** (`row-05` remains partial because gate 10 is
+  off by design).
+- Tests: `evidence/tests/test_generators.py` (15 tests: the
+  generators + the collector extension) and
+  `gates/local/tests/test_adapters.py` (13 tests for the gate
+  adapters, including a real SBOM chain + Cosign signing on a
+  minimal workload).
+- `CONTRIBUTING.md`, the issue templates in `.github/ISSUE_TEMPLATE/`,
+  and the secret-exposure incident handling section in `SECURITY.md`.
+- A draft of the dev.to introductory article (`release/devto-article-draft.md`)
+  — not yet posted, awaiting the release gate.
 
-### Sửa
+### Fixed
 
-- `examples/checkout-sample/.github/workflows/ci.yml`: sửa tham
-  chiếu reusable workflow cổng 10 thành đúng tên file
+- `examples/checkout-sample/.github/workflows/ci.yml`: fixed the
+  reusable workflow reference for gate 10 to the correct file name
   `gate-10-ai-pr-review.yml`.
-- Truy vết trong `evidence/README.md` và nội dung landing cập nhật
-  theo trạng thái 13/14.
+- Traceability in `evidence/README.md` and the landing content updated
+  to the 13/14 status.
 
 ## [M5-A2] — 2026-10-22
 
-### Thêm
+### Added
 
-- Ký Cosign cho bundle bằng chứng (`collect --sign`): chữ ký trên
-  `bundle.sha256`, verify bắt buộc khi manifest đã khai chữ ký
-  (fail-closed, kể cả khi thiếu binary cosign ở máy kiểm chứng).
-- Unit test cho `bundle_tool.py` (`evidence/tests/`, 8 test gồm các
-  ca giả mạo: sửa record + tính lại hash vẫn bị bắt ở lớp chữ ký).
+- Cosign signing for evidence bundles (`collect --sign`): a signature
+  over `bundle.sha256`, with verification mandatory when the manifest
+  declares a signature (fail-closed, even when the cosign binary is
+  missing on the verifying machine).
+- Unit tests for `bundle_tool.py` (`evidence/tests/`, 8 tests
+  including tampering cases: editing a record + recomputing the hash
+  is still caught at the signature layer).
 
 ## [M5-A] — 2026-10-22
 
-### Thêm
+### Added
 
-- Golden path: `templates/api-service/` và workload dogfood
-  `examples/checkout-sample/` dựng từ chính template — chạy trọn
-  pipeline cục bộ (10 cổng + bundle + verify) xanh ngay lần đầu.
-- Demo (`release/demo/`), nội dung landing, quét rủi ro trước phát
-  hành, hồ sơ phát hành `release/RELEASE-DOSSIER.md`.
+- Golden path: `templates/api-service/` and the dogfood workload
+  `examples/checkout-sample/` built from the template itself — ran
+  the full local pipeline (10 gates + bundle + verify) green on the
+  first run.
+- Demo (`release/demo/`), landing content, a pre-release risk scan,
+  and the release dossier `release/RELEASE-DOSSIER.md`.
 
-### Sửa
+### Fixed
 
-- Terraform workload mẫu: tách rule inline của security group thành
-  tài nguyên `aws_vpc_security_group_*_rule` riêng — hết vòng tham
-  chiếu, `terraform validate` đạt trên cả hai biến thể.
-- Bỏ job gom artefact dùng `merge-multiple: true` trong workflow CI
-  (ghi đè các record trùng tên giữa các cổng).
+- Sample Terraform workload: split the security group's inline rules
+  into separate `aws_vpc_security_group_*_rule` resources — no more
+  reference cycle, `terraform validate` passes on both variants.
+- Removed the artefact collection job using `merge-multiple: true` in
+  the CI workflow (it overwrote records with the same name across
+  gates).
 
 ## [M4] — 2026-10-22
 
-### Thêm
+### Added
 
-- Tự động hoá bằng chứng: `evidence/bundle_tool.py` — thu thập
-  record từ một lần chạy, kiểm schema M2, đóng bundle kèm manifest
-  SHA-256 và kiểm chứng một lệnh (`evidence/verify_bundle.py`).
+- Evidence automation: `evidence/bundle_tool.py` — collects records
+  from a run, checks the M2 schemas, packages a bundle with a
+  SHA-256 manifest, and verifies it with a single command
+  (`evidence/verify_bundle.py`).
 
 ## [M3] — 2026-10-22
 
-### Thêm
+### Added
 
-- 10 cổng CI dạng reusable workflow, dùng chung script với bản chạy
-  cục bộ (`gates/local/gate-NN.sh`) — CI và cục bộ là cùng một mã.
-  Cổng 10 (AI PR review) mặc định TẮT; pipeline chính hoàn thành khi
-  cổng 10 tắt.
+- 10 CI gates as reusable workflows, sharing the same scripts as the
+  local run (`gates/local/gate-NN.sh`) — CI and local are the same
+  code. Gate 10 (AI PR review) is OFF by default; the main pipeline
+  completes while gate 10 is off.
 
 ## [M2] — 2026-10-22
 
-### Thêm
+### Added
 
-- Gói policy v1: 14 policy (12 Rego + 2 Kyverno) và 14 schema bằng
-  chứng phủ đủ 14 hàng bản đồ kiểm soát pha 1; bộ kiểm chứng
-  `opa test` 48 test và harness đối chiếu workload mẫu.
+- Policy pack v1: 14 policies (12 Rego + 2 Kyverno) and 14 evidence
+  schemas covering all 14 rows of the phase-1 control map; the
+  verification suite `opa test` with 48 tests and the harness that
+  checks against the sample workload.
 
 ## [M1] — 2026-10-22
 
-### Thêm
+### Added
 
-- Khung repo: tài liệu kiến trúc tham chiếu, cấu hình mẫu tĩnh,
-  workload demo `examples/payments-sample/` (biến thể sạch + biến
-  thể cài 4 lỗi có chủ đích, mỗi lỗi ánh xạ tới cổng sẽ chặn nó).
+- Repository skeleton: reference architecture documents, static
+  sample configuration, and the demo workload
+  `examples/payments-sample/` (a clean variant + a variant with 4
+  deliberately planted faults, each fault mapping to the gate that
+  will block it).
