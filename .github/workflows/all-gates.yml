@@ -1,4 +1,4 @@
-# Master workflow for devsecops-os (phase 1): runs all 10 gates against
+# Master workflow for devsecops-os (phase 1): runs all 11 gates against
 # a sample workload variant. Gate 10 (AI PR Review Gate) is OFF BY DEFAULT —
 # the whole workflow must be complete while it is off (blueprint section 5.3).
 # The evidence-bundle job at the end is the M4 evidence collector (packs the
@@ -69,6 +69,10 @@ jobs:
     with:
       workload_path: "${{ inputs.workload_path }}"
       enabled: "${{ inputs.enable_ai_pr_review }}"
+  gate-11:
+    uses: ./.github/workflows/gate-11-runtime-version.yml
+    with:
+      workload_path: "${{ inputs.workload_path }}"
   evidence-bundle:
     # M4 — evidence collector: gathers the output of every gate, checks each
     # record against the M2 schema, packs the evidence bundle with its
@@ -78,7 +82,7 @@ jobs:
     # blueprint section 5.2 (missing evidence -> the bundle carries the
     # evidence-incomplete flag; phase 1 does not block the pipeline on evidence).
     # Gate 10 stays OFF BY DEFAULT like every other job in this workflow.
-    needs: [gate-01, gate-02, gate-03, gate-04, gate-05, gate-06, gate-07, gate-08, gate-09, gate-10]
+    needs: [gate-01, gate-02, gate-03, gate-04, gate-05, gate-06, gate-07, gate-08, gate-09, gate-10, gate-11]
     if: always()
     runs-on: ubuntu-latest
     permissions:
