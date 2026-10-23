@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Gate 8 — làm giàu danh sách lỗ hổng (từ gate 3, và tuỳ chọn gate 5)
-bằng feed thật CISA KEV + FIRST EPSS, sinh:
-  1. input cho policy devsecops.dependency_kev,
-  2. evidence record `vuln-risk-ranking` (quyết định block/issue + hạn).
-Feed được tải bởi gate-08.sh vào thư mục cache dùng chung của lần chạy.
+"""Gate 8 — enrich the vulnerability list (from gate 3, and optionally gate 5)
+with the real CISA KEV + FIRST EPSS feeds, producing:
+  1. the input for policy devsecops.dependency_kev,
+  2. the `vuln-risk-ranking` evidence record (block/issue decision + due date).
+The feeds are downloaded by gate-08.sh into the run's shared cache directory.
 """
 import argparse
 import csv
@@ -37,8 +37,8 @@ def load_epss(path):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--normalized", required=True,
-                    help="JSON từ osv_normalize.py (gate 3)")
-    ap.add_argument("--image-vulns", help="JSON lỗ hổng image từ gate 5 (tuỳ chọn)")
+                    help="JSON from osv_normalize.py (gate 3)")
+    ap.add_argument("--image-vulns", help="Image vulnerability JSON from gate 5 (optional)")
     ap.add_argument("--kev", required=True)
     ap.add_argument("--epss", required=True)
     ap.add_argument("--threshold", type=float, default=0.5)
@@ -88,7 +88,7 @@ def main() -> int:
     Path(a.out_ranking).write_text(
         json.dumps(ranking, indent=2, ensure_ascii=False) + "\n")
     nb = sum(1 for e in entries if e["decision"] == "block")
-    print(f"[kev_epss] {len(entries)} lỗ hổng đã xếp hạng: {nb} block, "
+    print(f"[kev_epss] {len(entries)} vulnerabilities ranked: {nb} block, "
           f"{len(entries) - nb} issue (KEV catalog {kev_ver}, EPSS {epss_model})")
     for e in entries:
         print(f"    - {e['cve']} {e['package']}=={e['version']}: "
