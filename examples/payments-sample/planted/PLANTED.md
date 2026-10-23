@@ -1,109 +1,109 @@
-# PLANTED — 4 lỗi gài có chủ đích trong biến thể này
+# PLANTED — 4 intentionally planted flaws in this variant
 
-Biến thể `planted/` giống hệt `clean/` ngoại trừ **đúng 4 lỗi** dưới đây.
-Mục đích: kiểm chứng bộ gates của devsecops-os chặn đúng chỗ (tiêu chí
-nghiệm thu số 2 của blueprint mục 3.2 — mỗi lỗi phải bị chặn ở đúng gate
-kỳ vọng, và bản `clean/` không được có chặn oan nào). Việc gates có thực
-sự chặn được hay không được kết luận ở M3/M5 khi gates chạy thật; tài liệu
-này là *đặc tả kỳ vọng*, không phải kết quả đo.
+The `planted/` variant is identical to `clean/` except for **exactly the 4 flaws** below.
+Purpose: to verify that the devsecops-os gate suite blocks at the right places (acceptance
+criterion 2 of blueprint section 3.2 — each flaw must be blocked at the expected gate,
+and the `clean/` variant must have no false blocks). Whether the gates actually
+block them is concluded at M3/M5 when the gates run for real; this document
+is an *expectation specification*, not a measurement result.
 
-> **An toàn**: mọi "bí mật" trong biến thể này đều là chuỗi GIẢ dạng ví dụ,
-> không dùng được ở bất kỳ đâu. Không bao giờ gài credential thật vào
-> workload mẫu.
+> **Safety**: every "secret" in this variant is a FAKE example string,
+> unusable anywhere. Never plant a real credential into
+> a sample workload.
 
-## Lỗi 1 — Secret giả hardcode trong code
+## Flaw 1 — Hardcoded fake secret in code
 
-- **Ở đâu**: `backend/config.py` — `PAYMENT_PROVIDER_API_KEY` có giá trị
-  dự phòng hardcode dạng `sk_live_FAKENOTREAL…` khi biến môi trường không
-  được đặt.
-- **Bản chất**: API key của nhà cung cấp thanh toán bị commit thẳng vào
-  mã nguồn — rò rỉ theo mọi bản sao của repo.
-- **Gate kỳ vọng chặn**: **Gate 1 — Secret scanning** (gitleaks; blueprint
-  mục 5.1). Điều kiện chặn mặc định của gate 1: phát hiện secret có vẻ
-  thật. Chuỗi gài dùng định dạng khoá live (`sk_live_` + hậu tố chữ-số dài)
-  để scanner nhận diện được theo mẫu, nhưng chứa dấu hiệu giả rõ ràng
-  (`FAKENOTREAL`) với con người.
-- **Cách gỡ**: xoá giá trị dự phòng, chỉ đọc từ môi trường — đúng như
+- **Where**: `backend/config.py` — `PAYMENT_PROVIDER_API_KEY` has a
+  hardcoded fallback value of the form `sk_live_FAKENOTREAL…` when the environment variable is not
+  set.
+- **Nature**: The payment provider's API key is committed directly into
+  source code — it leaks with every copy of the repo.
+- **Expected blocking gate**: **Gate 1 — Secret scanning** (gitleaks; blueprint
+  section 5.1). Gate 1's default blocking condition: detection of a seemingly
+  real secret. The planted string uses the live key format (`sk_live_` + a long alphanumeric suffix)
+  so the scanner can recognize it by pattern, but contains a clear fake marker
+  (`FAKENOTREAL`) for humans.
+- **How to remove**: delete the fallback value, read only from the environment — exactly as in
   `clean/backend/config.py`.
 
-## Lỗi 2 — Dependency dính CVE thuộc CISA KEV
+## Flaw 2 — Dependency affected by a CVE in CISA KEV
 
-- **Ở đâu**: `backend/requirements.txt` — `starlette==1.0.0`.
+- **Where**: `backend/requirements.txt` — `starlette==1.0.0`.
 - **CVE**: **CVE-2026-48710** ("BadHost", GHSA-86qp-5c8j-p5mr) — Starlette
-  không kiểm chứng header `Host` khi tái dựng `request.url`, cho phép
-  chèn đường dẫn vào phần host và qua mặt các kiểm tra phân quyền dựa trên
+  does not validate the `Host` header when reconstructing `request.url`, allowing
+  path injection into the host part and bypassing authorization checks based on
   `request.url.path` (HTTP request smuggling / inconsistent interpretation,
   CWE-444).
-- **Phạm vi bị ảnh hưởng**: Starlette `>= 0.8.3, < 1.0.1`; bản vá đầu tiên
-  là **1.0.1** (phát hành 2026-05-21). Bản gài dùng `1.0.0` — bản cuối cùng
-  còn dính lỗi. Bản `clean/` dùng `1.9.0` (đã qua bản vá).
-- **Nguồn kiểm chứng** (đã đối chiếu ngày 2026-10-22):
-  - CISA Known Exploited Vulnerabilities catalog (bản JSON chính thức,
-    catalogVersion 2026.10.21): CVE-2026-48710 có mặt trong catalog,
-    `dateAdded: 2026-09-02`, nhà cung cấp/sản phẩm ghi "Kludex / Starlette".
+- **Affected range**: Starlette `>= 0.8.3, < 1.0.1`; the first patch
+  is **1.0.1** (released 2026-05-21). The planted variant uses `1.0.0` — the last version
+  still affected. The `clean/` variant uses `1.9.0` (past the patch).
+- **Verification sources** (cross-checked on 2026-10-22):
+  - CISA Known Exploited Vulnerabilities catalog (the official JSON version,
+    catalogVersion 2026.10.21): CVE-2026-48710 is present in the catalog,
+    `dateAdded: 2026-09-02`, vendor/product listed as "Kludex / Starlette".
   - GitHub Security Advisory **GHSA-86qp-5c8j-p5mr** (repo Kludex/starlette):
-    mô tả cơ chế lỗi và hướng khắc phục "nâng cấp lên bản đã vá".
-  - Advisory **X41-2026-002** của X41 D-Sec (đơn vị phát hiện): ghi rõ
-    "Confirmed Affected Versions: starlette >= 0.8.3, < 1.0.1" và
+    describes the flaw mechanism and the remediation direction "upgrade to the patched version".
+  - Advisory **X41-2026-002** from X41 D-Sec (the discovering party): states
+    "Confirmed Affected Versions: starlette >= 0.8.3, < 1.0.1" and
     "Confirmed Patched Versions: starlette 1.0.1".
-- **Gate kỳ vọng chặn**: **Gate 3 — SCA** (osv-scanner/Trivy quét
-  `requirements.txt`/SBOM và báo CVE-2026-48710) kết hợp **Gate 8 — Ưu tiên
-  EPSS/CISA KEV**: vì CVE nằm trong KEV, gate 8 xếp nó vào nhóm chặn đầu
-  tiên khi hết giai đoạn report-only (đây là cơ chế chống alert fatigue
-  của hệ: không chặn theo CVSS thô, chặn theo bằng chứng khai thác thật).
-- **Cách gỡ**: nâng `starlette` lên `>= 1.0.1` (bản clean dùng `1.9.0`).
+- **Expected blocking gate**: **Gate 3 — SCA** (osv-scanner/Trivy scanning
+  `requirements.txt`/SBOM and reporting CVE-2026-48710) combined with **Gate 8 — EPSS/CISA KEV prioritization**:
+  because the CVE is in KEV, gate 8 places it in the first blocking group
+  once the report-only phase ends (this is the system's anti-alert-fatigue
+  mechanism: it does not block on raw CVSS, it blocks on real exploitation evidence).
+- **How to remove**: upgrade `starlette` to `>= 1.0.1` (the clean variant uses `1.9.0`).
 
-## Lỗi 3 — IaC mở public: security group 0.0.0.0/0
+## Flaw 3 — Public IaC: security group 0.0.0.0/0
 
-- **Ở đâu**: `infra/main.tf` — hai tài nguyên rule ingress riêng cộng
-  thêm gắn vào `aws_security_group.app` (`app_world_app_port` và
-  `app_world_ssh`, có chú thích `PLANTED:` ngay trong file): cổng ứng
-  dụng (`var.app_port`, mặc định 8000) và cổng SSH (22) mở từ
-  `0.0.0.0/0`. (Từ M5, toàn bộ rule của workload dùng dạng tài nguyên
-  `aws_vpc_security_group_*_rule` riêng thay cho rule inline — bản chất
-  lỗi không đổi.)
-- **Bản chất**: task ECS lẽ ra chỉ nhận traffic từ ALB (rule gốc vẫn còn),
-  nhưng hai rule gài cho phép bất kỳ địa chỉ Internet nào nối thẳng tới
-  task, qua mặt ALB và mọi kiểm soát ở tầng load balancer.
-- **Gate kỳ vọng chặn**: **Gate 4 — IaC scanning** (Trivy/Checkov quét
-  Terraform + OPA trên plan): rule security group mở `0.0.0.0/0` vào cổng
-  quản trị/ứng dụng vi phạm trực tiếp nhóm kiểm soát ranh giới hệ thống
-  trong các pack pha 1 (ví dụ SOC 2 CC6.6, PCI DSS yêu cầu 2 trong bảng
-  ánh xạ mục 4 của blueprint).
-- **Cách gỡ**: xoá hai tài nguyên rule có chú thích `PLANTED:` — file
-  trở thành giống hệt `clean/infra/main.tf`.
+- **Where**: `infra/main.tf` — two separate ingress rule resources additionally
+  attached to `aws_security_group.app` (`app_world_app_port` and
+  `app_world_ssh`, annotated `PLANTED:` right in the file): the application
+  port (`var.app_port`, default 8000) and the SSH port (22) open from
+  `0.0.0.0/0`. (From M5, all rules of the workload use the separate
+  `aws_vpc_security_group_*_rule` resource form instead of inline rules — the nature of
+  the flaw is unchanged.)
+- **Nature**: the ECS task should only receive traffic from the ALB (the original rule is still present),
+  but the two planted rules allow any Internet address to connect directly to
+  the task, bypassing the ALB and every control at the load balancer layer.
+- **Expected blocking gate**: **Gate 4 — IaC scanning** (Trivy/Checkov scanning
+  Terraform + OPA on the plan): a security group rule opening `0.0.0.0/0` to an
+  admin/application port directly violates the system boundary control group
+  in the phase 1 packs (for example SOC 2 CC6.6, PCI DSS requirement 2 in the
+  mapping table in section 4 of the blueprint).
+- **How to remove**: delete the two rule resources annotated `PLANTED:` — the file
+  becomes identical to `clean/infra/main.tf`.
 
-## Lỗi 4 — Base image cũ đóng băng, có lỗ hổng đã biết
+## Flaw 4 — Old frozen base image with known vulnerabilities
 
-- **Ở đâu**: `Dockerfile` — `FROM python:3.10.4-slim-bullseye`.
-- **Bản chất**: ảnh chụp đóng băng tháng 4/2022: CPython 3.10.4 trên Debian
-  bullseye với OpenSSL 1.1.1n. Tag cố định theo patch level nghĩa là image
-  không bao giờ nhận bản vá: nó mang theo các lỗ hổng đã được sửa ở nơi
-  khác, ví dụ CVE-2022-1292 (OpenSSL 1.1.1n, sửa ở 1.1.1o) và
-  CVE-2022-45061 (CPython < 3.10.9). Debian bullseye cũng đã hết vòng đời
-  hỗ trợ thường. (Hai CVE nêu ở đây thuộc về *thành phần bên trong image*,
-  độc lập với CVE-2026-48710 của lỗi 2.)
-- **Gate kỳ vọng chặn**: **Gate 5 — Container scanning** (Trivy/Grype quét
-  image theo layer): kỳ vọng báo nhiều lỗ hổng mức cao/nghiêm trọng trong
-  các gói hệ điều hành và thư viện của image, trái ngược với image hiện
-  hành của bản `clean/` (`python:3.13-slim`).
-- **Lưu ý trung thực**: ở M1 chưa có lần chạy Trivy/Grype nào trên hai
-  image này — danh sách lỗ hổng cụ thể và việc gate 5 chặn ở ngưỡng nào
-  là kết quả đo của M3, không được suy diễn trước từ tài liệu này. Đường
-  chạy local ở M1 là venv trên Python của máy (xem README của workload),
-  không phải build image này.
-- **Cách gỡ**: dùng base image hiện hành được duy trì — đúng như
+- **Where**: `Dockerfile` — `FROM python:3.10.4-slim-bullseye`.
+- **Nature**: a snapshot frozen in April 2022: CPython 3.10.4 on Debian
+  bullseye with OpenSSL 1.1.1n. A tag pinned at patch level means the image
+  never receives patches: it carries vulnerabilities that have been fixed elsewhere,
+  for example CVE-2022-1292 (OpenSSL 1.1.1n, fixed in 1.1.1o) and
+  CVE-2022-45061 (CPython < 3.10.9). Debian bullseye has also reached the end of its
+  regular support lifecycle. (The two CVEs cited here belong to *components inside the image*,
+  independent of CVE-2026-48710 in flaw 2.)
+- **Expected blocking gate**: **Gate 5 — Container scanning** (Trivy/Grype scanning
+  the image by layer): expected to report many high/critical vulnerabilities in
+  the operating system packages and libraries of the image, in contrast to the current image
+  of the `clean/` variant (`python:3.13-slim`).
+- **Honesty note**: at M1 there has been no Trivy/Grype run on either
+  of these images — the specific vulnerability list and at what threshold gate 5 blocks
+  are M3 measurement results, not to be inferred in advance from this document. The local
+  run path at M1 is the venv on the machine's Python (see the workload README),
+  not building this image.
+- **How to remove**: use a current, maintained base image — exactly as in
   `clean/Dockerfile`.
 
-## Bảng tóm tắt kỳ vọng cho M3/M5
+## Summary table of expectations for M3/M5
 
-| # | Lỗi gài | File | Gate kỳ vọng (blueprint mục 5) |
+| # | Planted flaw | File | Expected gate (blueprint section 5) |
 |---|---|---|---|
-| 1 | Secret giả hardcode | `backend/config.py` | 1 — Secret scanning |
-| 2 | `starlette==1.0.0` dính CVE-2026-48710 (KEV) | `backend/requirements.txt` | 3 — SCA, leo thang bởi 8 — KEV/EPSS |
-| 3 | SG mở `0.0.0.0/0` (app + SSH) | `infra/main.tf` | 4 — IaC scanning |
+| 1 | Hardcoded fake secret | `backend/config.py` | 1 — Secret scanning |
+| 2 | `starlette==1.0.0` affected by CVE-2026-48710 (KEV) | `backend/requirements.txt` | 3 — SCA, escalated by 8 — KEV/EPSS |
+| 3 | SG open to `0.0.0.0/0` (app + SSH) | `infra/main.tf` | 4 — IaC scanning |
 | 4 | Base image `python:3.10.4-slim-bullseye` (2022) | `Dockerfile` | 5 — Container scanning |
 
-Và chiều ngược lại bắt buộc: **bản `clean/` phải qua 100% gates** — một
-lần chặn oan trên bản clean cũng tính là không đạt, ngang với một lần sót
-lỗi trên bản planted.
+And the mandatory reverse direction: **the `clean/` variant must pass 100% of the gates** — a
+single false block on the clean variant also counts as a failure, equal to a single missed
+flaw on the planted variant.
