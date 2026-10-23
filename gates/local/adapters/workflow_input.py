@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Gate 9 — chuẩn hoá các workflow GitHub Actions của chính repo thành
-input cho policy devsecops.pipeline_policy: permissions mức workflow,
-danh sách `uses` (kiểm ghim SHA), gate đã bật (đọc từ all-gates.yml —
-job nào gọi reusable workflow gate-*), và thông tin OIDC/secret tĩnh
-của từng job.
+"""Gate 9 — normalize the repo's own GitHub Actions workflows into the
+input for policy devsecops.pipeline_policy: workflow-level permissions,
+the `uses` list (SHA pinning check), enabled gates (read from all-gates.yml —
+which jobs call a gate-* reusable workflow), and each job's OIDC/static-secret
+information.
 """
 import argparse
 import json
@@ -74,9 +74,9 @@ def main() -> int:
             "file": f".github/workflows/{path.name}",
             "permissions": doc.get("permissions"),
             "uses": uses,
-            # gates_enabled là thuộc tính của PIPELINE (all-gates) mà
-            # workflow này thuộc về — các reusable workflow là một phần
-            # của cùng pipeline đó, nên dùng chung danh sách đã bật.
+            # gates_enabled is a property of the PIPELINE (all-gates) that
+            # this workflow belongs to — the reusable workflows are part
+            # of that same pipeline, so they share the enabled list.
             "gates_enabled": gates_enabled,
             "jobs": job_docs,
         })
