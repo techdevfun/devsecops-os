@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "devsecops-os evidence: sarif-report",
-  "description": "Báo cáo quét dạng SARIF 2.1.0 (SAST/SCA/secret/IaC/container) theo commit — giữ nguyên định dạng gốc của scanner, collector chỉ gắn metadata.",
+  "description": "SARIF 2.1.0 scan report (SAST/SCA/secret/IaC/container) per commit — the scanner's original format is kept as-is; the collector only attaches metadata.",
   "type": "object",
   "required": [
     "evidence_type",
@@ -22,10 +22,10 @@
       "description": "gitleaks|codeql|semgrep|trivy|osv-scanner|checkov"
     },
     "artifact_uri": {
-      "description": "nơi lưu file SARIF trong evidence store"
+      "description": "where the SARIF file is stored in the evidence store"
     },
     "sha256": {
-      "description": "hash của file SARIF"
+      "description": "hash of the SARIF file"
     }
   }
 }
