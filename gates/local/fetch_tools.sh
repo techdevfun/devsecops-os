@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Tải + kiểm checksum các công cụ của bộ gates (dùng chung cục bộ & CI).
-# Mọi phiên bản đều GHIM + SHA-256 đo từ bản phát hành chính thức ngày
-# 2026-10-22. Công cụ đã có đúng phiên bản trong $TOOLS_DIR thì bỏ qua.
+# Download + checksum-verify the gate tools (shared by local runs & CI).
+# Every version is PINNED + SHA-256 measured from the official release dated
+# 2026-10-22. A tool already present at the right version in $TOOLS_DIR is skipped.
 set -eu
 TOOLS_DIR="${TOOLS_DIR:-$HOME/workspace/tools}"
 mkdir -p "$TOOLS_DIR/downloads"
 cd "$TOOLS_DIR/downloads"
 
-fetch() { # fetch <tên-file-đích> <url> <sha256>
+fetch() { # fetch <destination-filename> <url> <sha256>
   local dest="$TOOLS_DIR/$1" url="$2" sum="$3"
-  if [ -x "$dest" ]; then echo "[fetch_tools] đã có $1 — bỏ qua"; return 0; fi
+  if [ -x "$dest" ]; then echo "[fetch_tools] already have $1 — skipping"; return 0; fi
   local tmp; tmp="$(basename "$url")"
-  echo "[fetch_tools] tải $1 từ $url"
+  echo "[fetch_tools] downloading $1 from $url"
   curl -sL --fail -o "$tmp" "$url"
   echo "$sum  $tmp" | sha256sum -c - >/dev/null
   case "$tmp" in
@@ -19,13 +19,13 @@ fetch() { # fetch <tên-file-đích> <url> <sha256>
     *.zip) python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall('.')" "$tmp" ;;
     *) cp "$tmp" "$dest" ;;
   esac
-  # Sau giải nén, binary nằm ngay trong thư mục downloads (tarball của các
-  # công cụ này đều chứa binary ở gốc).
+  # After extraction, the binary sits directly in the downloads directory (the tarballs of
+  # these tools all contain the binary at the root).
   for b in gitleaks trivy syft conftest terraform; do
     if [ -f "$b" ] && [ "$1" = "$b" ]; then mv "$b" "$dest"; fi
   done
   chmod +x "$dest"
-  echo "[fetch_tools] $1 OK (sha256 khớp)"
+  echo "[fetch_tools] $1 OK (sha256 matches)"
 }
 
 fetch gitleaks    https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
@@ -37,8 +37,8 @@ fetch conftest    https://github.com/open-policy-agent/conftest/releases/downloa
 fetch terraform   https://releases.hashicorp.com/terraform/1.17.0/terraform_1.17.0_linux_amd64.zip c168cab7c637a8769fdb90089ddd19de701bc6ff8aca64dc2e2185fe46f59f67
 
 if [ ! -x "$TOOLS_DIR/opa" ]; then
-  echo "[fetch_tools] tải opa v1.21.3"
+  echo "[fetch_tools] downloading opa v1.21.3"
   curl -sL --fail -o "$TOOLS_DIR/opa" https://openpolicyagent.org/downloads/v1.21.3/opa_linux_amd64_static
   chmod +x "$TOOLS_DIR/opa"
 fi
-echo "[fetch_tools] hoàn tất: $TOOLS_DIR"
+echo "[fetch_tools] done: $TOOLS_DIR"
