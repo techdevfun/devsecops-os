@@ -47,6 +47,7 @@ bash policies/harness/kyverno_check.sh
 Gates are numbered according to section 5 of the blueprint: 1 secret · 2 SAST · 3 SCA ·
 4 IaC · 5 container · 6 SBOM+attestation · 7 license · 8 KEV/EPSS ·
 9 pipeline hygiene · 10 AI PR Review Gate (OFF by default in phase 1) ·
+11 runtime version floor (added with pack 1.2.0, 2026-10-23) ·
 final: evidence collector (M4).
 
 | # | Blueprint row (framework — control group) | Policy (code/file) | Consuming gate & step | Evidence type |
@@ -81,6 +82,7 @@ suppliers — see the phase 2 roadmap in blueprint section 3.3.
 | dependency_kev | Rego (over OSV + KEV/EPSS) | `rego/dependency_kev.rego` | `docs/dependency_kev.md` |
 | license_policy | Rego (over the SBOM) | `rego/license_policy.rego` | `docs/license_policy.md` |
 | base_image | Rego (pre-check for container scan) | `rego/base_image.rego` | `docs/base_image.md` |
+| runtime_version | Rego (declared-version floor over pack data `data/runtime_floors.json`) | `rego/runtime_version.rego` | `docs/runtime_version.md` |
 | pipeline_policy | Rego | `rego/pipeline_policy.rego` | `docs/pipeline_policy.md` |
 | change_record | Rego | `rego/change_record.rego` | `docs/change_record.md` |
 | provenance | Rego | `rego/provenance.rego` | `docs/provenance.md` |
