@@ -1,64 +1,70 @@
-# Biên bản dogfood golden path — service checkout-sample (M5-A)
+# Dogfood golden-path record — checkout-sample service (M5-A)
 
-**Ngày chạy:** 2026-10-22 (giờ hệ thống UTC; máy kiểm chứng cục bộ của
-nhà máy). **Người chạy:** worker M5-A. **Môi trường:** cục bộ — cùng các
-script `gates/local/gate-*.sh` mà GitHub Actions gọi (xem
-`gates/README.md`). Phần chạy trên GitHub Actions thật: **UNVERIFIED**,
-thuộc mốc M5-B.
+**Run date:** 2026-10-22 (system time UTC; the factory's local
+verification machine). **Run by:** worker M5-A. **Environment:**
+local — the same `gates/local/gate-*.sh` scripts that GitHub Actions
+calls (see `gates/README.md`). The part running on real GitHub
+Actions: **UNVERIFIED**, belongs to milestone M5-B.
 
-## Cách service được tạo (đúng quy trình golden path)
+## How the service was created (following the golden path)
 
-1. Sao chép nguyên cây `templates/api-service/` →
-   `examples/checkout-sample/` (không sao chép từ payments-sample).
-2. Đổi tên `example-service` → `checkout-sample` và `EXAMPLE_API_KEY` →
-   `CHECKOUT_API_KEY` trên toàn bộ file (mã nguồn, IaC, manifest, docs).
-3. Điền README của service (mục đích, mức nhạy cảm dữ liệu: internal;
-   mục vận hành ghi "không áp dụng — service mẫu dogfood").
-4. Chạy toàn bộ pipeline cục bộ như bước 6 của `templates/README.md`.
+1. Copied the entire `templates/api-service/` tree →
+   `examples/checkout-sample/` (not copied from payments-sample).
+2. Renamed `example-service` → `checkout-sample` and
+   `EXAMPLE_API_KEY` → `CHECKOUT_API_KEY` across all files (source
+   code, IaC, manifests, docs).
+3. Filled in the service README (purpose, data sensitivity level:
+   internal; the operations section reads "not applicable — dogfood
+   sample service").
+4. Ran the entire local pipeline as in step 6 of
+   `templates/README.md`.
 
-## Kết quả từng bước (lần chạy đầu tiên, không chạy lại)
+## Per-step results (first run, no re-run)
 
-| Bước | Kết quả | Thời lượng |
+| Step | Result | Duration |
 |---|---|---|
-| Smoke: cài dependencies vào venv sạch + chạy backend thật + gọi `GET /health` | ✅ `{"status":"ok","service":"checkout-sample"}` | (gộp với gate 01 ≈ 20 giây đầu) |
-| Gate 01 — secret scanning | ✅ PASS, 0 vi phạm | ~5 giây |
-| Gate 02 — SAST (report-only) | ✅ exit 0, 0 finding chặn | ~17 giây |
-| Gate 03 — SCA (report-only) | ✅ exit 0 | ~10 giây |
-| Gate 04 — IaC | ✅ terraform validate PASS; network_exposure / storage_encryption / iam_least_privilege đều PASS | ~33 giây |
-| Gate 05 — container | ✅ base_image PASS | ~12 giây |
-| Gate 06 — SBOM + attestation | ✅ provenance PASS, SBOM đã ký (khoá tạm của lần chạy) | ~6 giây |
-| Gate 07 — license | ✅ PASS | <1 giây |
-| Gate 08 — KEV/EPSS | ✅ dependency_kev PASS | ~2 giây |
-| Gate 09 — vệ sinh pipeline | ✅ PASS | <1 giây |
-| Gate 10 — AI PR review | ✅ hoàn thành ở trạng thái tắt mặc định (pha 1) | <1 giây |
-| Đóng evidence bundle | ✅ `evidence/bundles/local-checkout-sample/` | <1 giây |
-| Kiểm chứng bundle (một lệnh) | ✅ "PASS — mọi hash khớp manifest, mọi record khớp schema M2" | <1 giây |
-| **TỔNG** | **Mọi bước exit 0 ngay lần chạy đầu** | **100 giây** (đo bằng đồng hồ treo tường của script chạy) |
+| Smoke: install dependencies into a clean venv + run the real backend + call `GET /health` | ✅ `{"status":"ok","service":"checkout-sample"}` | (combined with gate 01 ≈ the first 20 seconds) |
+| Gate 01 — secret scanning | ✅ PASS, 0 violations | ~5 seconds |
+| Gate 02 — SAST (report-only) | ✅ exit 0, 0 blocking findings | ~17 seconds |
+| Gate 03 — SCA (report-only) | ✅ exit 0 | ~10 seconds |
+| Gate 04 — IaC | ✅ terraform validate PASS; network_exposure / storage_encryption / iam_least_privilege all PASS | ~33 seconds |
+| Gate 05 — container | ✅ base_image PASS | ~12 seconds |
+| Gate 06 — SBOM + attestation | ✅ provenance PASS, SBOM signed (the run's temporary key) | ~6 seconds |
+| Gate 07 — license | ✅ PASS | <1 second |
+| Gate 08 — KEV/EPSS | ✅ dependency_kev PASS | ~2 seconds |
+| Gate 09 — pipeline hygiene | ✅ PASS | <1 second |
+| Gate 10 — AI PR review | ✅ completed in its default-off state (phase 1) | <1 second |
+| Close evidence bundle | ✅ `evidence/bundles/local-checkout-sample/` | <1 second |
+| Verify bundle (one command) | ✅ "PASS — all hashes match the manifest, all records match the M2 schema" | <1 second |
+| **TOTAL** | **All steps exit 0 on the first run** | **100 seconds** (measured by the running script's wall clock) |
 
-Thời lượng từng bước khôi phục từ dấu thời gian file đầu ra (sai số ±2
-giây) vì tiện ích `bc` không có trên máy chạy nên bộ đo lẻ của script
-ghi 0.00 — tổng 100 giây là số đo trực tiếp, không suy diễn. Log thô:
-`release/dogfood-run.log`; bảng mã thoát từng bước:
+Per-step durations were recovered from output-file timestamps
+(error ±2 seconds) because the `bc` utility is not present on the
+run machine, so the script's per-step timer recorded 0.00 — the
+100-second total is a direct measurement, not an inference. Raw
+log: `release/dogfood-run.log`; per-step exit-code table:
 `release/dogfood-timings.tsv`.
 
-## Đối chiếu tiêu chí nghiệm thu 5 của blueprint
+## Cross-check against blueprint acceptance criterion 5
 
-"Golden path ≤ 30 phút, CI xanh ngay lần chạy đầu":
+"Golden path ≤ 30 minutes, CI green on the first run":
 
-- **Phần cục bộ: ĐẠT** — từ lúc có cây service tới khi bundle kiểm chứng
-  xong: ~100 giây cho pipeline (cộng vài phút thao tác sao chép/đổi tên
-  thủ công theo hướng dẫn), mọi bước xanh ngay lần đầu, không sửa lỗi
-  giữa chừng.
-- **Phần trên GitHub Actions thật: UNVERIFIED** — repo chưa được công
-  bố; việc tạo service từ template trong một repo GitHub thật và CI
-  xanh ở lần chạy đầu trên Actions thuộc nghiệm thu M5-B sau khi chủ sở
-  hữu duyệt phát hành.
+- **Local part: MET** — from having the service tree to the bundle
+  being verified: ~100 seconds for the pipeline (plus a few minutes
+  of manual copy/rename operations following the instructions),
+  every step green on the first attempt, no mid-run fixes.
+- **Part on real GitHub Actions: UNVERIFIED** — the repo has not
+  been published yet; creating a service from the template in a real
+  GitHub repo and having CI green on the first Actions run belongs
+  to M5-B acceptance after the owner approves the release.
 
-## Ghi chú trung thực
+## Honest notes
 
-- Gate 02/03 ở chế độ report-only theo mặc định pha 1: "xanh" nghĩa là
-  hoàn thành và không có finding thuộc diện chặn; với checkout-sample,
-  gate 03 vẫn thấy các CVE mức thấp của chính các dependency đã ghim
-  (cùng nhóm với bản clean của payments-sample) — ghi trong bundle.
-- Checkout-sample dùng chung phiên bản dependency/IaC với template nên
-  kết quả này kiểm chứng template, không phải một hệ sinh thái khác.
+- Gates 02/03 run in report-only mode by phase-1 default: "green"
+  means completed with no findings in the blocking category; for
+  checkout-sample, gate 03 still sees the low-level CVEs of the
+  pinned dependencies themselves (the same group as the clean
+  variant of payments-sample) — recorded in the bundle.
+- Checkout-sample shares its dependency/IaC versions with the
+  template, so this result verifies the template, not a different
+  ecosystem.
