@@ -19,6 +19,10 @@ with the phase-1 tree published as prerelease `v1.0.0-phase1`.
 
 - Policy pack 1.1.0: all Rego deny messages translated to English; policy-decision evidence records now carry English violations text (decisions, violation counts and schemas unchanged). Evidence bundle tool 1.3.0: all bundle data text (manifest note, ci-log record fields, control-index completeness basis, summary.md) and collect/verify output translated to English. Demo re-recorded raw with fully English output; the previous Vietnamese-output capture was replaced, never edited.
 
+### Added
+
+- **Gate 11 — runtime version floor** (policy pack 1.2.0, new policy `devsecops.runtime_version`): blocks workloads whose declared runtime is below the security floor for its branch. Floors live in pack data (`policies/data/runtime_floors.json`) — first entry: PHP floors for PHP2Shell (CVE-2026-109618 / CVE-2026-109619): 8.2 >= 8.2.35, 8.3 >= 8.3.36, 8.4 >= 8.4.27, 8.5 >= 8.5.12; older branches are denied as end-of-life with no fixed upstream release, and unpinned tags (`latest`, partial versions) are denied as unverifiable. The check reads the Dockerfile `FROM` declaration only, needs neither a KEV listing nor package matching, and passes as not-applicable for runtimes without floor data. Measured gap it closes (2026-10-23): neither gate 5 (Trivy cannot match interpreter CVEs in the source-compiled PHP image) nor gate 8 (the CVEs were absent from CISA KEV catalog 2026.10.21) detected a vulnerable `php:8.3.0` workload; gate 11 denies it and passes `php:8.4.27`.
+
 ## [Unreleased] — local completion round M5-A3 (2026-10-22)
 
 ### Added
