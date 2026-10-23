@@ -1,9 +1,9 @@
-"""checkout-sample — golden-path API skeleton của devsecops-os.
+"""checkout-sample — golden-path API skeleton of devsecops-os.
 
-Khung tối thiểu cho một service API mới: /health cho probes, một resource
-mẫu (items, in-memory) để đội ngũ thay bằng nghiệp vụ thật. Mọi kiểm soát
-bảo mật mặc định (không secret trong code, cấu hình qua môi trường, chạy
-non-root trong container) đến từ chính template — xem ../README.md.
+A minimal skeleton for a new API service: /health for probes, a sample
+resource (items, in-memory) for the team to replace with real business logic. Every
+default security control (no secrets in code, configuration via the environment, running
+non-root in the container) comes from the template itself — see ../README.md.
 
 Run locally:
   pip install -r requirements.txt
