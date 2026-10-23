@@ -1,10 +1,12 @@
-# secret_findings — chính sách quyết định trên KẾT QUẢ quét secret.
+# secret_findings — decision policy on secret SCAN RESULTS.
 #
-# Lý do chọn cơ chế này (không phải policy trên code trực tiếp): phát hiện
-# secret là việc của scanner chuyên dụng (gitleaks — gate 1). Policy này là
-# lớp quyết định: bất kỳ finding secret nào chưa hết hạn allowlist đều
-# CHẶN. Đầu vào là JSON chuẩn hoá từ kết quả quét (gitleaks JSON hoặc bộ
-# trích xuất tương đương trong harness), nên thay scanner không đổi policy.
+# Why this mechanism (not a policy on code directly): detecting
+# secrets is the job of a dedicated scanner (gitleaks — gate 1).
+# This policy is the decision layer: any secret finding that is not
+# covered by an active allowlist entry BLOCKS. Input is normalised
+# JSON from scan results (gitleaks JSON or an equivalent extractor
+# in the harness), so swapping the scanner does not change the
+# policy.
 #
 # Input:
 #   { "findings": [ { "file": "backend/config.py", "line": 18,
@@ -16,7 +18,7 @@ package devsecops.secret_findings
 deny contains msg if {
 	f := input.findings[_]
 	not allowlist_active(f)
-	msg := sprintf("secret chua allowlist tai %s:%d (rule %s) — phai go bo va xoay vong credential (ISO A.8.28, PCI DSS Req 6/8 tham chieu)", [f.file, f.line, f.rule])
+	msg := sprintf("non-allowlisted secret at %s:%d (rule %s) — remove it and rotate the credential (ISO A.8.28, PCI DSS Req 6/8 reference)", [f.file, f.line, f.rule])
 }
 
 allowlist_active(f) if {
