@@ -1,45 +1,47 @@
 #!/usr/bin/env python3
-"""devsecops-os — bộ sinh bằng chứng quyết định/định kỳ (M5-A3).
+"""devsecops-os - decision/periodic evidence generators (M5-A3).
 
-Bốn loại bằng chứng của bản đồ pha 1 mà KHÔNG gate CI nào sinh ra
-trong một lần chạy PR — vì chúng thuộc lớp quyết định (merge/release)
-hoặc là việc theo kỳ/lịch — được sinh ở đây từ dữ liệu thật trong cây,
-đúng schema M2 (policies/evidence-schemas):
+Four phase-1 map evidence types that NO CI gate produces during a
+PR run - because they belong to the decision layer (merge/release)
+or are periodic/scheduled work - are generated here from real data
+in the tree, against the M2 schemas (policies/evidence-schemas):
 
-  change-record          hồ sơ thay đổi của một lần chạy: kết quả
-                         gate thật (đọc từ các policy-decision của
-                         lần chạy) + phê duyệt + liên kết bằng chứng.
-                         Kèm theo: policy devsecops.change_record
-                         được chạy THẬT bằng OPA trên record vừa
-                         sinh và quyết định của nó được ghi thành
-                         một policy-decision record đi kèm.
-  drift-report           so cấu hình IaC hiện tại (parse bằng đúng
-                         adapter HCL2 của gate 4) với baseline đã khai
-                         trong evidence/baselines/ — lệch ở đâu ghi
-                         ở đó. Kèm policy-decision của
-                         devsecops.drift_control chạy thật bằng OPA.
-  access-review-report   rà soát quyền theo kỳ: permissions của mọi
-                         workflow trong cây + mẫu OIDC trust policy.
-  config-baseline-report báo cáo cấu hình theo môi trường: chạy 3
-                         policy nhóm cấu hình của gate 4 (network /
-                         storage / IAM) trên workload chỉ định, cộng
-                         kiểm tra cấu hình repo (branch protection,
-                         quyền workflow).
+  change-record          change record for one run: real gate
+                         results (read from the run's
+                         policy-decisions) + approvals + evidence
+                         links. Accompanied by the
+                         devsecops.change_record policy run FOR REAL
+                         with OPA on the generated record, its
+                         decision written as a policy-decision record.
+  drift-report           compares the current IaC config (parsed
+                         with gate 4's own HCL2 adapter) against the
+                         declared baseline in evidence/baselines/.
+                         Accompanied by a policy-decision from
+                         devsecops.drift_control run for real in OPA.
+  access-review-report   periodic permission review: permissions of
+                         every workflow in the tree + the sample
+                         OIDC trust policy.
+  config-baseline-report per-environment config report: runs gate
+                         4's 3 config policy groups (network /
+                         storage / IAM) on the given workload, plus
+                         repo config checks (branch protection,
+                         workflow permissions).
 
-Mọi record sinh ra được ghi vào thư mục `supplementary-records/`
-của lần chạy (mặc định) — collector của M4 (bundle_tool.py) quét
-thư mục này như một nguồn record phụ trợ và kiểm schema như mọi
-record khác. Không record nào bịa dữ liệu: trường nào không có
-nguồn thật (ví dụ phê duyệt PR ở lần chạy cục bộ) thì ghi đúng
-giá trị thật (rỗng) kèm ghi chú — chính policy change_record sẽ
-deny vì thiếu phê duyệt, và quyết định deny đó cũng là bằng chứng.
+Every generated record is written to the run's
+`supplementary-records/` directory (default) - the M4 collector
+(bundle_tool.py) scans it as a supplementary record source and
+schema-checks it like any other record. No record fabricates data:
+a field with no real source (e.g. PR approvals in a local run)
+records the real (empty) value with a note - the change_record
+policy will then deny for missing approval, and that deny decision
+is evidence too.
 
-Chỉ dùng thư viện chuẩn của Python 3 (cùng nguyên tắc với
-bundle_tool.py). OPA/conftest là binary ngoài, tìm theo thứ tự:
-tham số dòng lệnh > biến môi trường > ~/workspace/tools > PATH;
-thiếu là lỗi ồn ào (exit 2), không âm thầm bỏ qua.
+Python 3 standard library only (same principle as bundle_tool.py).
+OPA/conftest are external binaries, looked up in order: CLI flag >
+environment variable > ~/workspace/tools > PATH; a missing binary
+is a loud error (exit 2), never silently skipped.
 
-Cách dùng:
+Usage:
   python3 evidence/generators.py all --run-dir evidence/output/local-clean
   python3 evidence/generators.py change-record --run-dir <run> [--out <dir>]
   python3 evidence/generators.py drift-report --workload examples/payments-sample/clean
@@ -72,8 +74,9 @@ REGO_BUNDLE = REPO_ROOT / "policies" / "rego"
 DEFAULT_BASELINE = SCRIPT_DIR / "baselines" / "payments-sample.tf-normalized.json"
 SUPPLEMENTARY_DIR_NAME = "supplementary-records"
 
-# Cấu hình của policy change_record theo quy ước pack v1 (khớp
-# policies/fixtures/change_record.pass.json + docs/change_record.md).
+# Config for the change_record policy per pack v1 conventions
+# (matches policies/fixtures/change_record.pass.json +
+# docs/change_record.md).
 CHANGE_CONFIG = {
     "protected_branches": ["main", "release"],
     "required_gates": ["secret", "sast", "sca", "iac"],
@@ -87,7 +90,7 @@ STATIC_SECRET_RE = re.compile(
 
 
 # ---------------------------------------------------------------------------
-# Tiện ích chung
+# Shared utilities
 # ---------------------------------------------------------------------------
 
 def sha256_bytes(data: bytes) -> str:
@@ -134,17 +137,18 @@ def find_tool(explicit, env_key, name):
 def require_tool(explicit, env_key, name, what):
     tool = find_tool(explicit, env_key, name)
     if not tool:
-        print(f"LỖI: {what} cần binary {name} nhưng không tìm thấy "
-              f"(truyền --{name} <đường dẫn>, đặt biến môi trường "
-              f"{env_key}, hoặc để tại ~/workspace/tools/{name})",
+        print(f"ERROR: {what} needs the {name} binary but it was not "
+              f"found (pass --{name} <path>, set the {env_key} "
+              f"environment variable, or place it in "
+              f"~/workspace/tools/{name})",
               file=sys.stderr)
         raise SystemExit(2)
     return tool
 
 
 def opa_deny(opa, package, input_doc):
-    """Chạy thật một policy của pack: opa eval data.devsecops.<pkg>.deny.
-    Trả về danh sách thông điệp deny (rỗng = pass)."""
+    """Run one pack policy for real: opa eval data.devsecops.<pkg>.deny.
+    Returns the list of deny messages (empty = pass)."""
     with _TempJson(input_doc) as input_path:
         proc = subprocess.run(
             [opa, "eval", "--bundle", str(REGO_BUNDLE),
@@ -153,7 +157,7 @@ def opa_deny(opa, package, input_doc):
             capture_output=True, text=True, timeout=120)
     if proc.returncode != 0:
         raise RuntimeError(
-            f"opa eval ({package}) thất bại: {proc.stderr.strip()[:400]}")
+            f"opa eval ({package}) failed: {proc.stderr.strip()[:400]}")
     res = json.loads(proc.stdout).get("result") or []
     if not res:
         return []
@@ -201,8 +205,8 @@ def policy_decision_record(policy_id, gate, decision_doc_input,
 
 
 def load_tf_parser():
-    """Nạp đúng adapter HCL2 của gate 4 (tf_parse_input.py) để parse
-    IaC — một nguồn phân tích duy nhất cho cả gate lẫn bộ sinh."""
+    """Load gate 4's own HCL2 adapter (tf_parse_input.py) to parse IaC
+    - a single analysis source for both the gate and the generators."""
     path = REPO_ROOT / "gates" / "local" / "adapters" / "tf_parse_input.py"
     spec = importlib.util.spec_from_file_location("tf_parse_input", path)
     module = importlib.util.module_from_spec(spec)
@@ -215,19 +219,20 @@ def parse_infra(conftest, infra_dir: Path):
     parsed = tf.conftest_parse(conftest, infra_dir / "main.tf")
     defaults = tf.var_defaults(
         tf.conftest_parse(conftest, infra_dir / "variables.tf"))
-    # Dùng lại nguyên logic chuẩn hoá của adapter bằng cách chạy các
-    # hàm nội bộ của nó trên cùng dữ liệu parse — adapter không tách
-    # hàm build doc riêng, nên ta tái cấu trúc từ các hàm bodies/
-    # resolve của chính adapter (đầu ra phải khớp tf-normalized của
-    # gate 4; test đối chiếu trực tiếp với adapter CLI).
+    # Reuse the adapter's exact normalization logic by running its
+    # internal functions on the same parsed data - the adapter has no
+    # separate doc-builder, so we rebuild from its own bodies/resolve
+    # functions (output must match gate 4's tf-normalized; the test
+    # compares directly against the adapter CLI).
     return build_normalized(tf, parsed, defaults)
 
 
 def build_normalized(tf, parsed, defaults):
-    """Tái tạo doc chuẩn hoá {security_groups, storage, iam_policies,
-    managed_policy_attachments} từ dữ liệu conftest parse — bám sát
-    từng bước của tf_parse_input.main() (adapter là nguồn sự thật;
-    test_generators đối chiếu hai đầu ra trên workload thật)."""
+    """Rebuild the normalized doc {security_groups, storage,
+    iam_policies, managed_policy_attachments} from conftest parse
+    data, following tf_parse_input.main() step by step (the adapter
+    is the source of truth; test_generators compares both outputs on
+    a real workload)."""
     lbs = tf.bodies(parsed, "aws_lb")
     public_sgs = set()
     for lb in lbs.values():
@@ -314,15 +319,15 @@ def build_normalized(tf, parsed, defaults):
 
 
 # ---------------------------------------------------------------------------
-# 1) change-record — từ kết quả gate thật của một lần chạy
+# 1) change-record - from a run's real gate results
 # ---------------------------------------------------------------------------
 
-# Ánh xạ gate bắt buộc của change_record -> nguồn quyết định thật.
+# Map of change_record's required gates -> real decision sources.
 _REQUIRED_GATE_SOURCES = {
     "secret": ("devsecops.secret_findings", 1),
-    "sast": (None, 2),   # gate 2 report-only ở pha 1: không có policy-decision
-    "sca": ("devsecops.dependency_kev", 8),  # quyết định chặn nằm ở gate 8
-    "iac": (None, 4),    # tổ hợp 3 policy của gate 4
+    "sast": (None, 2),   # gate 2 is report-only in phase 1: no policy-decision
+    "sca": ("devsecops.dependency_kev", 8),  # the blocking decision lives at gate 8
+    "iac": (None, 4),    # combination of gate 4’s 3 policies
 }
 _IAC_POLICIES = ("devsecops.network_exposure",
                  "devsecops.storage_encryption",
@@ -330,8 +335,8 @@ _IAC_POLICIES = ("devsecops.network_exposure",
 
 
 def scan_run_decisions(run_dir: Path):
-    """Đọc mọi policy-decision-*.json trong các thư mục gate của lần
-    chạy. Trả về (decisions, commit_sha, latest_ts)."""
+    """Read every policy-decision-*.json in the run's gate dirs.
+    Returns (decisions, commit_sha, latest_ts)."""
     decisions = []
     commit_sha, latest_ts = None, None
     for gdir in sorted(run_dir.glob("gate-*")):
@@ -366,7 +371,7 @@ def gate_dir_has_record(run_dir: Path, gate_no: int, evidence_type: str):
 
 def gen_change_record(run_dir: Path, out_dir: Path, opa) -> dict:
     if not run_dir.is_dir():
-        print(f"LỖI: thư mục lần chạy không tồn tại: {run_dir}",
+        print(f"ERROR: run directory does not exist: {run_dir}",
               file=sys.stderr)
         raise SystemExit(2)
     decisions, commit_sha, latest_ts = scan_run_decisions(run_dir)
@@ -397,15 +402,15 @@ def gen_change_record(run_dir: Path, out_dir: Path, opa) -> dict:
                 "deny" if "deny" in parts.values()
                 else "pass" if all(v == "pass" for v in parts.values())
                 else "missing")
-            gate_details["iac (tổ hợp gate 4)"] = parts
+            gate_details["iac (gate 4 combination)"] = parts
         elif gate_name == "sast":
             has_sarif = gate_dir_has_record(run_dir, 2, "sarif-report")
             gate_results["sast"] = "pass" if has_sarif else "missing"
-            gate_details["sast (gate 2, report-only ở pha 1)"] = {
+            gate_details["sast (gate 2, report-only in phase 1)"] = {
                 "decision": gate_results["sast"],
-                "note": "gate 2 không sinh policy-decision ở pha 1 "
-                        "(report-only); kết quả ở đây nghĩa là bản quét "
-                        "SAST đã chạy và có record SARIF trong lần chạy",
+                "note": "gate 2 produces no policy-decision in phase 1 "
+                        "(report-only); a pass here means the SAST scan "
+                        "ran and a SARIF record exists in the run",
             }
         else:
             gate_results[gate_name] = decision_of(policy_id)
@@ -413,20 +418,21 @@ def gen_change_record(run_dir: Path, out_dir: Path, opa) -> dict:
     record = {
         "evidence_type": "change-record",
         "change_id": run_id,
-        "change_source": "lần chạy kiểm chứng cục bộ — cây này chưa "
-                         "phải git repo và chưa có hệ thống PR; "
-                         "change_id lấy theo định danh lần chạy, "
-                         "author/phê duyệt ghi đúng trạng thái thật "
-                         "của lần chạy cục bộ",
+        "change_source": "local verification run - this tree is not "
+                         "yet a git repo and has no PR system; "
+                         "change_id uses the run identifier, "
+                         "author/approvals record the local run's "
+                         "real state",
         "target_branch": "main",
         "author": "local-verification-harness",
         "approvals": [],
-        "approvals_note": "lần chạy cục bộ không có PR và không có "
-                          "người phê duyệt — approvals để rỗng đúng "
-                          "sự thật; policy change_record vì thế DENY "
-                          "(xem policy-decision-change_record đi "
-                          "kèm): hồ sơ thay đổi chỉ đạt khi có phê "
-                          "duyệt thật trên nhánh bảo vệ",
+        "approvals_note": "a local run has no PR and no approver - "
+                          "approvals is left empty, truthfully; the "
+                          "change_record policy therefore DENIES (see "
+                          "the accompanying "
+                          "policy-decision-change_record): a change "
+                          "record only passes with a real approval on "
+                          "a protected branch",
         "gate_results": gate_results,
         "gate_details": gate_details,
         "evidence_links": [f"evidence://run/{run_id}"],
@@ -456,14 +462,14 @@ def gen_change_record(run_dir: Path, out_dir: Path, opa) -> dict:
     decision = policy_decision_record(
         "devsecops.change_record", "decision-layer", policy_input, deny,
         commit_sha,
-        "lớp quyết định merge/release — không thuộc gate 1–10; "
-        "policy chạy thật bằng OPA trên change-record vừa sinh")
+        "merge/release decision layer - not one of gates 1-10; "
+        "policy run for real with OPA on the generated change-record")
     write_json(out_dir / "policy-decision-change_record.json", decision)
     return {"record": record, "decision": decision}
 
 
 # ---------------------------------------------------------------------------
-# 2) drift-report — cấu hình hiện tại so với baseline đã khai
+# 2) drift-report - current config vs the declared baseline
 # ---------------------------------------------------------------------------
 
 def _rule_key(rule):
@@ -487,17 +493,17 @@ def diff_normalized(baseline: dict, current: dict, detected_on: str):
     for name in sorted(set(base_sgs) | set(cur_sgs)):
         if name not in cur_sgs:
             add(name, "network",
-                "security group có trong baseline nhưng biến mất "
-                "khỏi cấu hình hiện tại")
+                "security group present in the baseline but missing "
+                "from the current configuration")
             continue
         if name not in base_sgs:
             add(name, "network",
-                "security group mới xuất hiện, chưa có trong baseline")
+                "new security group, not present in the baseline")
             continue
         b, c = base_sgs[name], cur_sgs[name]
         if b.get("public_web") != c.get("public_web"):
             add(name, "network",
-                f"cờ public_web đổi {b.get('public_web')} -> "
+                f"public_web flag changed {b.get('public_web')} -> "
                 f"{c.get('public_web')}")
         b_rules = {_rule_key(r): r for r in b.get("ingress", [])}
         c_rules = {_rule_key(r): r for r in c.get("ingress", [])}
@@ -507,22 +513,22 @@ def diff_normalized(baseline: dict, current: dict, detected_on: str):
                                               key=str)]
         if added or removed:
             add(name, "network",
-                f"rule ingress lệch baseline: +{len(added)} rule, "
+                f"ingress rules drift from baseline: +{len(added)} rule, "
                 f"-{len(removed)} rule",
                 added_rules=added, removed_rules=removed)
     base_st = {s["address"]: s for s in baseline.get("storage", [])}
     cur_st = {s["address"]: s for s in current.get("storage", [])}
     for addr in sorted(set(base_st) | set(cur_st)):
         if addr not in cur_st:
-            add(addr, "storage", "storage biến mất khỏi cấu hình hiện tại")
+            add(addr, "storage", "storage missing from the current configuration")
             continue
         if addr not in base_st:
-            add(addr, "storage", "storage mới, chưa có trong baseline")
+            add(addr, "storage", "new storage, not present in the baseline")
             continue
         for flag in ("encryption_enabled", "public_access_blocked"):
             if base_st[addr].get(flag) != cur_st[addr].get(flag):
                 add(addr, "storage",
-                    f"{flag} đổi {base_st[addr].get(flag)} -> "
+                    f"{flag} changed {base_st[addr].get(flag)} -> "
                     f"{cur_st[addr].get(flag)}")
     def att_key(a):
         return (a.get("role"), a.get("policy_arn"))
@@ -532,18 +538,18 @@ def diff_normalized(baseline: dict, current: dict, detected_on: str):
                for a in current.get("managed_policy_attachments", [])}
     for key in sorted(set(cur_att) - set(base_att), key=str):
         add(key[0], "iam",
-            f"gắn managed policy mới ngoài baseline: {key[1]}")
+            f"new managed policy attached outside the baseline: {key[1]}")
     for key in sorted(set(base_att) - set(cur_att), key=str):
         add(key[0], "iam",
-            f"managed policy trong baseline đã bị gỡ: {key[1]}")
+            f"managed policy from the baseline was removed: {key[1]}")
     return items
 
 
 def gen_drift_report(infra_dir: Path, baseline_path: Path, out_dir: Path,
                      opa, conftest) -> dict:
     if not baseline_path.is_file():
-        print(f"LỖI: baseline không tồn tại: {baseline_path} — sinh "
-              f"trước bằng lệnh write-baseline", file=sys.stderr)
+        print(f"ERROR: baseline does not exist: {baseline_path} - "
+              f"generate it first with write-baseline", file=sys.stderr)
         raise SystemExit(2)
     baseline_doc = load_json(baseline_path)
     baseline_cfg = baseline_doc.get("config") or {}
@@ -560,10 +566,10 @@ def gen_drift_report(infra_dir: Path, baseline_path: Path, out_dir: Path,
                     else str(baseline_path),
             "sha256": "sha256:" + sha256_file(baseline_path),
             "source": (baseline_doc.get("provenance") or {}).get(
-                "source", "không rõ"),
+                "source", "unknown"),
         },
         "target": {"infra_dir": str(infra_dir), "parser":
-                   "conftest parse (HCL2) qua adapter của gate 4"},
+                   "conftest parse (HCL2) via the gate 4 adapter"},
         "generated_by": GENERATED_BY,
     }
     write_json(out_dir / "drift-report.record.json", record)
@@ -574,8 +580,8 @@ def gen_drift_report(infra_dir: Path, baseline_path: Path, out_dir: Path,
     decision = policy_decision_record(
         "devsecops.drift_control", 4, policy_input, deny,
         "local-unspecified",
-        "drift check theo lịch — mở rộng của gate 4 (bản đồ pha 1, "
-        "row-13); policy chạy thật bằng OPA trên drift-report vừa sinh")
+        "scheduled drift check - extension of gate 4 (phase 1 map, "
+        "row-13); policy run for real with OPA on the generated drift-report")
     write_json(out_dir / "policy-decision-drift_control.json", decision)
     return {"record": record, "decision": decision}
 
@@ -584,11 +590,11 @@ def write_baseline(infra_dir: Path, baseline_path: Path, conftest) -> dict:
     cfg = parse_infra(conftest, infra_dir)
     doc = {
         "provenance": {
-            "source": f"cấu hình IaC tại {infra_dir} — biến thể được "
-                      f"duyệt làm chuẩn (baseline) cho drift check",
+            "source": f"IaC configuration at {infra_dir} - the variant "
+                      f"approved as the standard (baseline) for drift checks",
             "generated_at": iso_now(),
             "generated_by": GENERATED_BY,
-            "parser": "conftest parse (HCL2) qua adapter của gate 4 "
+            "parser": "conftest parse (HCL2) via the gate 4 adapter "
                       "(tf_parse_input)",
         },
         "config": cfg,
@@ -598,24 +604,25 @@ def write_baseline(infra_dir: Path, baseline_path: Path, conftest) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 3) access-review-report — rà soát quyền theo kỳ từ cây thật
+# 3) access-review-report - periodic permission review from the real tree
 # ---------------------------------------------------------------------------
 
 def parse_workflow_permissions(text: str):
-    """Bộ parse YAML tối thiểu cho đúng phần cần rà soát quyền:
-    permissions cấp workflow (khối hoặc scalar), permissions cấp job,
-    và cờ OIDC (id-token: write) ở bất kỳ cấp nào. Trả về dict
-    {top: dict|str|None, jobs: {job: dict|str|None}, oidc: bool}.
-    Chỉ dùng thư viện chuẩn — tooling bằng chứng không phụ thuộc
-    PyYAML (khác adapters của gates, vốn chạy trong môi trường gate)."""
+    """Minimal YAML parser for exactly what the permission review
+    needs: workflow-level permissions (block or scalar), job-level
+    permissions, and the OIDC flag (id-token: write) at any level.
+    Returns {top: dict|str|None, jobs: {job: dict|str|None},
+    oidc: bool}. Standard library only - the evidence tooling must
+    not depend on PyYAML (unlike the gate adapters, which run in the
+    gate environment)."""
     top = None
     jobs = {}
     oidc = False
     lines = text.splitlines()
 
     def read_block(start_idx, indent):
-        """Đọc các dòng 'key: value' ở đúng mức indent cho trước, bắt
-        đầu từ start_idx; trả về (dict, idx_kết_thúc)."""
+        """Read 'key: value' lines at the given indent level starting at
+        start_idx; returns (dict, end_idx)."""
         out = {}
         i = start_idx
         while i < len(lines):
@@ -690,28 +697,28 @@ def _perm_findings(label, parsed, raw_text):
 
     top = parsed["top"]
     if top is None:
-        add("high", f"{label}: không khai báo permissions cấp "
-                    f"workflow — GITHUB_TOKEN nhận quyền mặc định "
-                    f"của repo (rộng hơn cần thiết)")
+        add("high", f"{label}: no workflow-level permissions "
+                    f"declared - GITHUB_TOKEN gets the repo default "
+                    f"permissions (broader than necessary)")
     elif isinstance(top, str):
         if top == "write-all":
-            add("high", f"{label}: permissions: write-all ở cấp "
-                        f"workflow — thừa quyền nghiêm trọng")
+            add("high", f"{label}: permissions: write-all at workflow "
+                        f"level - severe excess privilege")
         else:
-            add("info", f"{label}: permissions dạng scalar "
-                        f"'{top}' ở cấp workflow")
+            add("info", f"{label}: scalar permissions "
+                        f"'{top}' at workflow level")
     for job, perms in parsed["jobs"].items():
         if perms == "write-all":
-            add("high", f"{label}: job '{job}' có permissions "
+            add("high", f"{label}: job '{job}' has permissions "
                         f"write-all")
     if parsed["oidc"]:
-        add("info", f"{label}: có id-token: write — job nhận token "
-                    f"OIDC ngắn hạn qua federation (đúng nguyên tắc "
-                    f"identity-first; không dùng khoá tĩnh)")
+        add("info", f"{label}: has id-token: write - the job receives "
+                    f"a short-lived OIDC token via federation "
+                    f"(identity-first; no static keys)")
     for m in sorted(set(STATIC_SECRET_RE.findall(raw_text))):
-        add("high", f"{label}: tham chiếu secret tĩnh dạng "
-                    f"secrets.{m} — nguy cơ dùng khoá cloud dài hạn "
-                    f"thay cho OIDC")
+        add("high", f"{label}: static secret reference "
+                    f"secrets.{m} - risk of long-lived cloud keys "
+                    f"being used instead of OIDC")
     return findings
 
 
@@ -729,8 +736,8 @@ def gen_access_review(repo_root: Path, out_dir: Path) -> dict:
     total_findings = {"high": 0, "medium": 0, "info": 0}
     for label, wdir in scopes:
         if not wdir.is_dir():
-            scanned.append(f"{label}: (không có thư mục workflows — "
-                           f"bỏ qua)")
+            scanned.append(f"{label}: (no workflows directory - "
+                           f"skipped)")
             continue
         for wf in sorted(wdir.glob("*.yml")) + sorted(wdir.glob("*.yaml")):
             raw = wf.read_text(encoding="utf-8")
@@ -764,12 +771,13 @@ def gen_access_review(repo_root: Path, out_dir: Path) -> dict:
             if ":root" in blob or '"*"' in blob:
                 findings.append({
                     "level": "info",
-                    "message": "mẫu trust policy có mặt; cần đối "
-                               "chiếu điều kiện sub/aud khi tổ chức "
-                               "áp thật (mẫu giữ chỗ theo thiết kế)"})
+                    "message": "sample trust policy present; check the "
+                               "sub/aud conditions when an organization "
+                               "applies it for real (placeholder sample "
+                               "by design)"})
             subjects.append({
                 "repo": "docs/examples",
-                "role": "mẫu OIDC trust policy (AWS) cho GitHub Actions",
+                "role": "sample OIDC trust policy (AWS) for GitHub Actions",
                 "permissions": {"actions": actions},
                 "oidc": True,
                 "findings": findings,
@@ -779,10 +787,10 @@ def gen_access_review(repo_root: Path, out_dir: Path) -> dict:
         except Exception as exc:
             subjects.append({
                 "repo": "docs/examples",
-                "role": "mẫu OIDC trust policy (AWS)",
+                "role": "sample OIDC trust policy (AWS)",
                 "permissions": None, "oidc": True,
                 "findings": [{"level": "medium",
-                              "message": f"không đọc được file mẫu: "
+                              "message": f"could not read the sample file: "
                                          f"{exc}"}]})
     now = datetime.now(timezone.utc)
     record = {
@@ -795,10 +803,10 @@ def gen_access_review(repo_root: Path, out_dir: Path) -> dict:
             "workflows_scanned": len(
                 [s for s in subjects if "workflow" in s]),
             "findings_by_level": total_findings,
-            "note": "rà soát từ chính cây repo ở thời điểm sinh — "
-                    "không phải dữ liệu từ GitHub API (repo chưa "
-                    "phát hành); quyền hiệu lực trên GitHub chỉ xác "
-                    "nhận được sau khi repo tồn tại",
+            "note": "reviewed from the repo tree itself at generation "
+                    "time - not data from the GitHub API (the repo "
+                    "is not published yet); effective permissions on "
+                    "GitHub can only be confirmed once the repo exists",
         },
         "generated_by": GENERATED_BY,
     }
@@ -807,7 +815,7 @@ def gen_access_review(repo_root: Path, out_dir: Path) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 4) config-baseline-report — policy nhóm cấu hình trên workload + repo
+# 4) config-baseline-report - config policy groups on workload + repo
 # ---------------------------------------------------------------------------
 
 _CONFIG_POLICIES = ("network_exposure", "storage_encryption",
@@ -834,8 +842,8 @@ def gen_config_baseline(infra_dir: Path, environment: str, out_dir: Path,
         "area": "repo-config",
         "status": "pass" if bp.is_file() else "missing",
         "violations": [] if bp.is_file() else
-        ["không tìm thấy branch-protection.json trong template "
-         "golden path"],
+        ["branch-protection.json not found in the golden-path "
+         "template"],
     })
     wdir = repo_root / ".github" / "workflows"
     missing_perm = []
@@ -849,8 +857,8 @@ def gen_config_baseline(infra_dir: Path, environment: str, out_dir: Path,
         "control": "repo.workflow-permissions-declared",
         "area": "repo-config",
         "status": "pass" if not missing_perm else "deny",
-        "violations": [f"workflow {n} không khai báo permissions "
-                        f"cấp workflow" for n in missing_perm],
+        "violations": [f"workflow {n} does not declare workflow-level "
+                        f"permissions" for n in missing_perm],
     })
     record = {
         "evidence_type": "config-baseline-report",
@@ -895,24 +903,25 @@ def env_label_for(workload: Path) -> str:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="generators",
-        description="devsecops-os — bộ sinh bằng chứng quyết "
-                    "định/định kỳ (M5-A3)")
+        description="devsecops-os - decision/periodic evidence "
+                    "generators (M5-A3)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     def add_common(p):
         p.add_argument("--out", default=None,
-                       help="thư mục ghi record (mặc định: "
-                            "<run-dir>/supplementary-records khi có "
-                            "--run-dir, ngược lại ./supplementary-records)")
+                       help="directory to write records to (default: "
+                            "<run-dir>/supplementary-records when "
+                            "--run-dir is given, otherwise "
+                            "./supplementary-records)")
         p.add_argument("--run-dir", default=None)
         p.add_argument("--opa", default=None)
         p.add_argument("--conftest", default=None)
 
-    p_all = sub.add_parser("all", help="sinh cả 4 loại cho một lần chạy")
+    p_all = sub.add_parser("all", help="generate all 4 types for one run")
     add_common(p_all)
     p_all.add_argument("--workload", default=None,
-                       help="thư mục workload (mặc định suy từ tên "
-                            "lần chạy: local-clean/local-planted/"
+                       help="workload directory (default: inferred from the "
+                            "run name: local-clean/local-planted/"
                             "local-checkout-sample)")
     p_all.add_argument("--baseline", default=str(DEFAULT_BASELINE))
 
@@ -969,7 +978,7 @@ def main(argv=None) -> int:
 
     if args.command == "change-record":
         if not args.run_dir:
-            print("LỖI: change-record cần --run-dir", file=sys.stderr)
+            print("ERROR: change-record requires --run-dir", file=sys.stderr)
             return 2
         opa = require_tool(args.opa, "OPA", "opa", "change-record")
         out = out_dir_for(args)
@@ -989,7 +998,7 @@ def main(argv=None) -> int:
         res = gen_drift_report(workload / "infra",
                                Path(args.baseline), out, opa, conftest)
         print(f"drift-report: {len(res['record']['drift_items'])} "
-              f"mục drift · policy drift_control -> "
+              f"drift items - policy drift_control -> "
               f"{res['decision']['decision'].upper()} -> {out}")
         return 0
 
@@ -1010,13 +1019,13 @@ def main(argv=None) -> int:
 
     if args.command == "all":
         if not args.run_dir:
-            print("LỖI: all cần --run-dir", file=sys.stderr)
+            print("ERROR: all requires --run-dir", file=sys.stderr)
             return 2
         run_dir = Path(args.run_dir)
         workload = resolve_workload(run_dir, args.workload)
         if workload is None:
-            print("LỖI: không suy được workload từ tên lần chạy — "
-                  "truyền --workload", file=sys.stderr)
+            print("ERROR: could not infer the workload from the run name - "
+                  "pass --workload", file=sys.stderr)
             return 2
         opa = require_tool(args.opa, "OPA", "opa", "all")
         conftest = require_tool(args.conftest, "CONFTEST", "conftest",
@@ -1028,7 +1037,7 @@ def main(argv=None) -> int:
         dr = gen_drift_report(workload / "infra", Path(args.baseline),
                               out, opa, conftest)
         print(f"[all] drift-report: {len(dr['record']['drift_items'])} "
-              f"mục (policy: {dr['decision']['decision']})")
+              f"items (policy: {dr['decision']['decision']})")
         ar = gen_access_review(REPO_ROOT, out)
         print(f"[all] access-review-report: "
               f"{ar['record']['summary']['workflows_scanned']} workflow")
