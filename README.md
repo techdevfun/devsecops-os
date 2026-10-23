@@ -1,146 +1,193 @@
 # devsecops-os
 
-**Lớp điều hành (operating layer) mã nguồn mở, vendor-neutral cho DevSecOps +
-AI SecOps trong tổ chức bị quản chế** (ngân hàng, tài chính, bảo hiểm): kiến
-trúc tham chiếu chạy được, policy-as-code packs ánh xạ sẵn tới các khung kiểm
-soát (ISO 27001:2022, NIST CSF 2.0/SSDF, PCI DSS 4.0, APRA CPS 234, APRA
-CPS 230, SOC 2), bộ CI security gates tái dùng, và tự động hoá thu thập bằng
-chứng kiểm toán. Nó **tích hợp với** GitHub/GitLab/Harness chứ không thay thế
-họ, và không phải thêm một scanner nữa.
+**devsecops-os** is an open-source, vendor-neutral operating layer for
+DevSecOps and AI SecOps in regulated organisations. It gives platform
+and security teams policy-as-code gates and automated audit-evidence
+collection that run on the CI they already have — so a pipeline does
+not just block faults, it proves that it did.
 
-> ## Trạng thái: PHA 1 — ĐÃ KIỂM CHỨNG TRÊN GITHUB ACTIONS THẬT
+> ## Status: PHASE 1 — VERIFIED ON REAL GITHUB ACTIONS
 >
-> Các mốc M1–M5 đã xong: policy pack chạy được (14 policy + harness
-> 34/34), 10 CI gates chạy thật trên workload mẫu với ma trận kết quả
-> đầy đủ (bản sạch qua hết, bản gài lỗi bị chặn đúng 4 gate), evidence
-> bundle đóng gói + kiểm chứng một lệnh đã kiểm chứng cả chiều xuôi lẫn
-> chiều phá hoại (sửa 1 byte → FAIL), golden path đã có template và đã
-> dogfood một service thứ hai. **Số đo trên GitHub Actions thật** (repo
-> này, nhánh main): workflow tổng chạy 3 lần — 54, 66, 58 giây, **trung
-> vị 58 giây** (trần nghiệm thu 15 phút); biến thể gài lỗi bị chặn ở
-> đúng các gate 1, 4, 5, 8 trên CI; golden path dựng service từ template
-> và CI xanh **ngay lần chạy đầu**, tổng dựng + CI 5 phút 42 giây (trần
-> 30 phút); evidence bundle của mỗi lần chạy CI được **ký keyless bằng
-> Cosign qua OIDC** và tự xác minh ngay trong job. Hồ sơ phát hành chi
-> tiết: [`release/RELEASE-DOSSIER.md`](release/RELEASE-DOSSIER.md).
-> Không dùng repo này để tuyên bố tuân thủ bất kỳ khung kiểm soát nào:
-> các ánh xạ trong tài liệu là **ánh xạ tham chiếu phục vụ chuẩn bị
-> kiểm toán, không phải chứng nhận tuân thủ**.
+> Milestones M1–M5 are complete: a working policy pack (14 policies,
+> harness 34/34), 10 CI gates run for real on a sample workload with a
+> full result matrix (the clean variant passes everything; the
+> planted-fault variant is blocked at exactly 4 gates), evidence
+> bundles packaged and verified with a single command — verified in
+> both directions (edit 1 byte → verification FAILS), and a golden
+> path that has been dogfooded to build a second service.
+> **Measurements on real GitHub Actions** (this repository, `main`
+> branch): the master workflow ran 3 times — 54, 66 and 58 seconds,
+> **median 58 seconds** (acceptance limit: 15 minutes); the planted
+> variant was blocked at exactly gates 1, 4, 5 and 8 on CI; the
+> golden path built a service from the template and its CI was green
+> **on the first run**, 5 minutes 42 seconds total for build + CI
+> (limit: 30 minutes); the evidence bundle of each CI run is
+> **signed keyless with Cosign via OIDC** and verifies itself inside
+> the job. Evidence traceability covers **13 of 14** phase-1
+> control-mapping rows; the one partial row belongs to gate 10,
+> which is off by design in phase 1. Full release dossier:
+> [`release/RELEASE-DOSSIER.md`](release/RELEASE-DOSSIER.md).
+> Do not use this repository to claim compliance with any control
+> framework: the mappings in these documents are **reference mappings
+> for audit preparation, not a compliance certification**.
 
-## Demo (quay thô từ lần chạy thật)
+## Demo (raw capture from a real run)
 
-![Demo: gates chạy thật trên hai biến thể + kiểm chứng evidence bundle](release/demo/demo-terminal.gif)
+![Demo: gates running for real on both variants + evidence bundle verification](release/demo/demo-terminal.gif)
 
-GIF trên là **bản quay thô terminal**: một phiên thật chạy
-[`release/demo/replay.sh`](release/demo/replay.sh) được ghi nguyên bản
-bằng `script`, rồi dựng frame-theo-frame từ bản ghi thô
+The GIF above is a **raw terminal capture**: one real session running
+[`release/demo/replay.sh`](release/demo/replay.sh), recorded verbatim
+with `script` and rendered frame-by-frame from the raw recording
 ([`release/demo/demo-raw.typescript`](release/demo/demo-raw.typescript)
-\+ tệp timing đi kèm) bằng trình giả lập VT — không gõ lại lệnh, không
-sửa một dòng output nào, giữ nguyên wrap dòng, màu thật của terminal và
-tốc độ phát thực 1.0×. Bản ghi dạng chữ của cùng phiên:
-[`release/demo/demo-transcript.txt`](release/demo/demo-transcript.txt).
-Nội dung: bộ gates chạy trên hai biến thể của workload mẫu + kiểm chứng
-evidence bundle + thử sửa 1 byte để thấy kiểm chứng FAIL — không cảnh
-dàn dựng.
+plus its timing file) through a VT emulator — no command retyped, no
+output line edited, original line wrapping, real terminal colours
+and true 1.0× playback speed preserved. Text transcript of the same
+session: [`release/demo/demo-transcript.txt`](release/demo/demo-transcript.txt).
+What it shows: the gate suite running on both variants of the sample
+workload, an evidence bundle verification, and a 1-byte edit that
+makes verification FAIL — nothing staged.
 
-## Ai đau, hệ này làm gì
+## Who hurts, and what this does about it
 
-- **CISO / đội platform của tổ chức bị quản chế** đau ở ba chỗ: (1) mỗi đội
-  tự lắp pipeline bảo mật một kiểu, không có "đường chuẩn" để đi theo là đạt
-  kiểm soát; (2) chính sách tuân thủ nằm trong tài liệu Word/PDF, đến mùa
-  kiểm toán mới dịch thủ công thành cấu hình và đi gom bằng chứng khắp nơi;
-  (3) kết quả quét của các vendor (Harness, GitHub Advanced Security, Snyk…)
-  nằm trong hệ kín của từng vendor — lớp quản trị + bằng chứng xuyên suốt
-  theo khung quản chế cụ thể (CPS 234/230, PCI DSS…) vẫn phải tự xây.
-- Hệ này làm đúng phần còn thiếu đó: **policy-as-code nằm trong repo của
-  chính tổ chức** (không có server của bên thứ ba giữ dữ liệu), **CI gates**
-  chặn ở các điểm đã hiệu chuẩn, và **bằng chứng kiểm toán sinh tự động** từ
-  chính các lần chạy pipeline — pipeline không chỉ chặn lỗi, nó tự chứng
-  minh nó đã chặn.
+- **CISOs and platform teams in regulated organisations** hurt in
+  three places: (1) every team assembles its security pipeline
+  differently, so there is no standard path that reaches the controls
+  just by being followed; (2) compliance policy lives in Word/PDF
+  documents and is translated by hand into configuration at audit
+  time, while evidence is gathered manually from everywhere; (3)
+  scanner results from commercial vendors (Harness, GitHub Advanced
+  Security, Snyk…) live inside each vendor's closed system — the
+  cross-cutting governance and evidence layer for a specific
+  regulatory framework still has to be built in-house.
+- This system builds exactly that missing part: **policy-as-code that
+  lives in the organisation's own repositories** (no third-party
+  server holds the data), **CI gates** that block at calibrated
+  points, and **audit evidence generated automatically** from the
+  pipeline runs themselves — the pipeline does not only block
+  faults, it proves that it did.
 
-## Nguyên tắc thiết kế (tóm tắt — chi tiết ở `docs/architecture.md`)
+## Design principles (summary — details in `docs/architecture.md`)
 
-1. **Vendor-neutral theo cấu trúc**: scanner/connector giao tiếp qua định
-   dạng mở (SARIF, CycloneDX/SPDX, Sigstore, SLSA) — thay công cụ quét không
-   được phép làm gãy policy hay bằng chứng.
-2. **Identity-first**: không credential tĩnh dài hạn trong pipeline; con
-   người qua SSO/OIDC, workload qua OIDC federation nhận token ngắn hạn,
-   artefact được ký (Cosign) kèm SLSA provenance.
-3. **Policy ở trung tâm, thực thi ở nhiều điểm**: cùng một ý định kiểm soát
-   biên dịch xuống OPA/Rego, Kyverno và GitHub Actions gate.
-4. **Bằng chứng là sản phẩm phụ tự động của vận hành**, không phải việc làm
-   thêm mùa kiểm toán.
-5. **Không dữ liệu nào rời hạ tầng người dùng**: mọi thành phần chạy trong
-   CI/runner/cluster của chính tổ chức.
+1. **Vendor-neutral by structure**: scanners and connectors speak
+   open formats (SARIF, CycloneDX/SPDX, Sigstore, SLSA) — swapping a
+   scanning tool must not be allowed to break policy or evidence.
+2. **Identity-first**: no long-lived static credentials in the
+   pipeline; people go through SSO/OIDC, workloads through OIDC
+   federation for short-lived tokens, artefacts are signed (Cosign)
+   with SLSA provenance.
+3. **Policy at the centre, enforcement at many points**: the same
+   control intent compiled down to OPA/Rego, Kyverno and GitHub
+   Actions gates.
+4. **Evidence is an automatic by-product of operations**, not extra
+   work at audit time.
+5. **No data leaves the user's infrastructure**: every component runs
+   in the organisation's own CI, runners and clusters.
 
-## Cấu trúc repo
+## Control framework mappings
 
-| Thư mục | Nội dung | Mốc |
+The policy pack ships pre-mapped to the control frameworks below.
+These are **reference mappings to support audit preparation — not a
+compliance certification**.
+
+| Framework | Policy pack |
+|---|---|
+| ISO 27001:2022 | `iso-27001-2022` |
+| NIST CSF 2.0 / SSDF | `nist-csf-ssdf` |
+| PCI DSS 4.0 | `pci-dss-4` |
+| APRA CPS 234 | `apra-cps-234` |
+| APRA CPS 230 | `apra-cps-230` |
+| SOC 2 | `soc-2` |
+
+## Integrations
+
+devsecops-os **integrates with** the platforms an organisation
+already runs — GitHub, GitLab, Harness — instead of replacing them,
+and it is not one more scanner. Phase 1 implements GitHub Actions;
+the GitLab and Jenkins/on-prem integration points are designed, not
+yet implemented (see
+[`docs/integration-points.md`](docs/integration-points.md)).
+
+## How it compares — honestly
+
+Commercial platforms (Harness, GitHub Advanced Security, Snyk) are
+far ahead of this system in scanning depth, enterprise support and
+the vendors' own certifications; this system does not claim to
+replace them (see the competitor analysis in the project blueprint).
+Its wedge is the layer those platforms leave to you: governance and
+verifiable audit evidence, in your own infrastructure, across the
+tools you already run.
+
+## Repository layout
+
+| Directory | Contents | Milestone |
 |---|---|---|
-| `docs/` | Kiến trúc tham chiếu + hướng dẫn (gồm golden paths) | M1 ✓ |
-| `examples/payments-sample/` | Workload mẫu hai biến thể (sạch / gài lỗi) để kiểm chứng gates | M1 ✓ |
-| `examples/checkout-sample/` | Service thứ hai, dựng từ golden path (dogfood) | M5 ✓ |
-| `policies/` | Policy packs ánh xạ khung kiểm soát (14 policy, harness 34/34) | M2 ✓ |
-| `gates/` | Bộ 10 CI security gates dạng reusable workflows + script cục bộ | M3 ✓ |
-| `evidence/` | Evidence collector + bundle có manifest SHA-256 + verify một lệnh | M4 ✓ |
+| `docs/` | Reference architecture + guides (including golden paths) | M1 ✓ |
+| `examples/payments-sample/` | Sample workload in two variants (clean / planted faults) for verifying the gates | M1 ✓ |
+| `examples/checkout-sample/` | Second service, built from the golden path (dogfood) | M5 ✓ |
+| `policies/` | Policy packs mapped to control frameworks (14 policies, harness 34/34) | M2 ✓ |
+| `gates/` | The 10 CI security gates as reusable workflows + local scripts | M3 ✓ |
+| `evidence/` | Evidence collector + bundle with SHA-256 manifest + one-command verify | M4 ✓ |
 | `templates/` | Golden-path service templates (`api-service`) | M5 ✓ |
-| `release/` | Hồ sơ phát hành, biên bản dogfood, demo, nội dung landing | M5 |
+| `release/` | Release dossier, dogfood record, demo, landing content | M5 |
 
-## Chạy thử ngay (cục bộ, cùng script mà CI gọi)
+## Try it now (locally — the same scripts CI calls)
 
 ```bash
-# 1) Tải bộ công cụ đã ghim phiên bản + SHA-256
-bash gates/local/fetch_tools.sh            # TOOLS_DIR mặc định: ~/workspace/tools
+# 1) Fetch the pinned toolset (versions + SHA-256 pinned)
+bash gates/local/fetch_tools.sh            # TOOLS_DIR default: ~/workspace/tools
 
-# 2) Chạy toàn bộ kiểm chứng trên hai biến thể workload mẫu
+# 2) Run the full verification on both sample-workload variants
 bash gates/verification/run_verification.sh all
-#    -> ma trận kết quả: gates/verification/results.md
+#    -> result matrix: gates/verification/results.md
 
-# 3) Đóng + kiểm chứng evidence bundle của một lần chạy (một lệnh verify)
+# 3) Collect + verify one run's evidence bundle (one verify command)
 python3 evidence/bundle_tool.py collect evidence/output/local-clean \
     --run-id local-clean --out-dir evidence/bundles/local-clean
 python3 evidence/verify_bundle.py evidence/bundles/local-clean
 ```
 
-Kỳ vọng (đã kiểm chứng tại M3–M5): bản `clean` qua cả 10 gate; bản
-`planted` bị chặn đúng ở gate 1 (secret), gate 4 (IaC — security group mở
-Internet), gate 5 (base image hết hạn) và gate 8 (dependency thuộc CISA
-KEV), không chặn nhầm ở gate nào khác.
+Expected (verified at M3–M5): the `clean` variant passes all 10
+gates; the `planted` variant is blocked at exactly gate 1 (secret),
+gate 4 (IaC — security group open to the Internet), gate 5
+(end-of-life base image) and gate 8 (dependency in CISA KEV), and
+is not blocked at any other gate.
 
-## Workload mẫu
+## Sample workload
 
-`examples/payments-sample/` chứa một ứng dụng thanh toán tối giản (API
-backend Python/Starlette, frontend tĩnh, Terraform AWS, Dockerfile, manifest
-Kubernetes) ở hai biến thể song song:
+`examples/payments-sample/` contains a minimal payments application
+(Python/Starlette API backend, static frontend, Terraform for AWS,
+Dockerfile, Kubernetes manifests) in two parallel variants:
 
-- `clean/` — cấu hình đúng chuẩn, kỳ vọng qua mọi gate.
-- `planted/` — gài đúng 4 lỗi có chủ đích (secret giả, dependency dính
-  CVE-2026-48710 thuộc CISA KEV, security group mở 0.0.0.0/0, base image cũ
-  đóng băng từ 2022) để kiểm chứng gate chặn đúng chỗ. Chi tiết từng lỗi và
-  gate kỳ vọng tương ứng: `examples/payments-sample/planted/PLANTED.md`.
+- `clean/` — correctly configured; expected to pass every gate.
+- `planted/` — exactly 4 deliberate faults planted (fake secret,
+  dependency carrying CVE-2026-48710 from CISA KEV, security group
+  open to 0.0.0.0/0, old base image frozen since 2022) to verify the
+  gates block at the right places. Each fault and its expected gate:
+  `examples/payments-sample/planted/PLANTED.md`.
 
-## Tài liệu
+## Documentation
 
-- [Kiến trúc tham chiếu](docs/architecture.md)
-- [Định danh & attestation (identity-first)](docs/identity-and-access.md)
+- [Reference architecture](docs/architecture.md)
+- [Identity & attestation (identity-first)](docs/identity-and-access.md)
 - [Golden paths](docs/golden-paths.md) + [template](templates/README.md)
-- [Đa môi trường: cloud + on-prem](docs/environments.md)
-- [Điểm tích hợp GitHub / Harness / GitLab](docs/integration-points.md)
-- [Ma trận kết quả kiểm chứng gates](gates/verification/results.md)
-- [Hồ sơ phát hành + bảng điểm hội đồng](release/RELEASE-DOSSIER.md)
+- [Multiple environments: cloud + on-prem](docs/environments.md)
+- [Integration points: GitHub / Harness / GitLab](docs/integration-points.md)
+- [Gate verification result matrix](gates/verification/results.md)
+- [Release dossier + council score sheet](release/RELEASE-DOSSIER.md)
 
-## Ranh giới trung thực
+## Honest limits
 
-- Không tuyên bố "bank-grade", "NAB-grade" hay "được tổ chức nào sử dụng" —
-  đây là blueprint + reference implementation chạy được trên workload mẫu.
-- Đối thủ thương mại (Harness, GitHub Advanced Security, Snyk) hơn hẳn hệ
-  này về độ sâu quét, hỗ trợ enterprise và chứng chỉ của chính vendor; hệ
-  này không tuyên bố thay thế họ (xem phân tích đối thủ trong blueprint của
-  dự án).
-- Gate AI PR Review Gate (flagship #1 của nhà máy) là một gate *tuỳ chọn*,
-  mặc định **tắt** trong pha 1, và chỉ được bật khi flagship #1 qua cổng
-  publish riêng của nó.
+- This project makes no claim to be used by, endorsed by, or
+  certified for any organisation — it is a blueprint plus a working
+  reference implementation, verified on a sample workload.
+- Commercial rivals (Harness, GitHub Advanced Security, Snyk) are
+  well ahead of this system in scanning depth, enterprise support
+  and the vendors' own certifications; this system does not claim to
+  replace them (see "How it compares — honestly" above).
+- The AI PR Review Gate (the factory's flagship #1) is an *optional*
+  gate, **off** by default in phase 1, and is only enabled once
+  flagship #1 passes its own separate release gate.
 
 ## License
 
-MIT — xem `LICENSE`.
+MIT — see `LICENSE`.
