@@ -1,27 +1,27 @@
-# pipeline_policy — vệ sinh pipeline + build an toàn + OIDC
+# pipeline_policy — pipeline hygiene + secure build + OIDC
 
-- **Mã**: `devsecops.pipeline_policy` · **Cơ chế**: OPA/Rego trên
-  workflow đã chuẩn hoá (từ YAML của GitHub Actions) · **Gate tiêu
-  thụ**: Gate 9 (vệ sinh pipeline) cho phần quyền/ghim SHA/OIDC; Gate 2
-  (SAST) + toàn bộ bộ gates cho phần "đủ gate bắt buộc" (hàng ISO
-  A.8.25–A.8.28 / SSDF PW.7–PW.9) · **Bằng chứng**:
+- **Code**: `devsecops.pipeline_policy` · **Mechanism**: OPA/Rego over a
+  normalised workflow (from GitHub Actions YAML) · **Consuming
+  gate**: Gate 9 (pipeline hygiene) for the permissions/SHA pinning/OIDC part; Gate 2
+  (SAST) + the entire gate suite for the "required gates present" part (ISO rows
+  A.8.25–A.8.28 / SSDF PW.7–PW.9) · **Evidence**:
   `pipeline-config-verification` + `policy-decision` (+ `pr-review-report`
-  khi gate 10 được bật).
+  when gate 10 is enabled).
 
-**Kiểm soát nào** (ánh xạ tham chiếu): SSDF PW.9 (cấu hình môi trường
-build an toàn) và PW.7 (review mã — qua yêu cầu gate review/SAST có
-mặt); ISO 27001 A.8.25–A.8.28 (vòng đời phát triển an toàn); SOC 2
-CC6.1/CC7.1; PCI DSS 4.0 Yêu cầu 6/8 (không credential tĩnh trong CI);
-CPS 234 (kiểm soát tương xứng).
+**Which control** (reference mapping): SSDF PW.9 (secure build environment
+configuration) and PW.7 (code review — via the requirement that review/SAST gates are
+present); ISO 27001 A.8.25–A.8.28 (secure development lifecycle); SOC 2
+CC6.1/CC7.1; PCI DSS 4.0 Requirements 6/8 (no static credentials in CI);
+CPS 234 (proportionate controls).
 
-**Vì sao**: pipeline là đích tấn công supply-chain có giá trị cao nhất
-(bài học R9 của flagship #1 về action bị chiếm quyền): action bên thứ
-ba không ghim SHA có thể bị thay mã dưới cùng một tag; `write-all` và
-secret cloud dài hạn biến một workflow bị lỗi thành toàn quyền hạ
-tầng. OIDC federation thay credential tĩnh bằng token ngắn hạn theo
-đúng repo/branch — nguyên tắc identity-first của kiến trúc.
+**Why**: the pipeline is the highest-value supply-chain attack target
+(lesson R9 from flagship #1 about actions being taken over): a third-party action
+not pinned by SHA can have its code replaced under the same tag; `write-all` and
+long-lived cloud secrets turn a faulty workflow into full infrastructure
+privileges. OIDC federation replaces static credentials with short-lived tokens scoped to the
+exact repo/branch — the identity-first principle of the architecture.
 
-**Vi phạm thì sửa thế nào**: khai báo `permissions` tối thiểu từng
-job; ghim mọi action bên thứ ba theo full commit SHA (kèm comment ghi
-phiên bản); job chạm cloud chuyển sang `id-token: write` + role ARN
-theo OIDC; bật đủ các gate trong `required_gates` của pack.
+**How to fix a violation**: declare minimal `permissions` for each
+job; pin every third-party action by full commit SHA (with a comment recording the
+version); jobs that touch the cloud move to `id-token: write` + a role ARN
+via OIDC; enable all gates in the pack's `required_gates`.
