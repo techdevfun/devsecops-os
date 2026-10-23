@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Gate 4 — IaC scanning, ba lớp:
-#  (a) terraform init -backend=false + validate trên bản sao sandbox
-#      (provider bỏ qua kiểm chứng credential bằng override CHỈ trong
-#      sandbox; kết quả validate ghi thẳng vào validate.json — sau
-#      refactor M5 (rule SG tách sang tài nguyên riêng) validate PASS
-#      trên cả hai biến thể; plan vẫn không sinh được tại chỗ vì data
-#      source aws_availability_zones cần gọi AWS API thật);
-#  (b) trivy config quét HCL (lớp phát hiện, evidence SARIF — report-only);
-#  (c) OPA trên mô hình tài nguyên từ `conftest parse` (HCL2 parser
-#      chuẩn) cho 3 policy của pack: network_exposure,
-#      storage_encryption, iam_least_privilege — đây là lớp QUYẾT ĐỊNH:
-#      deny ở bất kỳ policy nào -> gate chặn (exit 1).
+# Gate 4 — IaC scanning, three layers:
+#  (a) terraform init -backend=false + validate on a sandbox copy
+#      (the provider skips credential validation via an override ONLY inside
+#      the sandbox; the validate result is written straight into validate.json — after
+#      the M5 refactor (SG rules split into separate resources) validate PASSes
+#      on both variants; a plan still cannot be generated locally because the data
+#      source aws_availability_zones needs to call the real AWS API);
+#  (b) trivy config scanning the HCL (detection layer, SARIF evidence — report-only);
+#  (c) OPA over the resource model from `conftest parse` (the standard HCL2 parser
+#      ) for the pack's 3 policies: network_exposure,
+#      storage_encryption, iam_least_privilege — this is the DECISION layer:
+#      a deny from any policy -> the gate blocks (exit 1).
 source "$(dirname "$0")/lib.sh"
 gate_begin 04 iac
 
@@ -45,10 +45,10 @@ json.dump({"tool": "terraform validate (terraform 1.17.0)",
            "output_tail": log[-800:]},
           open(f"{out}/validate.json", "w"), indent=2)
 print(f"[gate 04] terraform validate exit={vexit} "
-      f"({'PASS' if vexit == 0 else 'FAIL — xem validate.json'})")
+      f"({'PASS' if vexit == 0 else 'FAIL — see validate.json'})")
 PYEOF
 
-# --- (b) trivy config (phát hiện) ---
+# --- (b) trivy config (detection) ---
 trivy config --format json --output "$GATE_OUT/trivy-config.json" \
   "$WORKLOAD/infra" >/dev/null 2>&1
 trivy config --format sarif --output "$GATE_OUT/trivy-config.sarif" \
@@ -75,7 +75,7 @@ record sarif-report.record.json <<EOF
  "sha256": "sha256:$(sha256_of "$GATE_OUT/trivy-config.sarif")"}
 EOF
 
-# --- (c) OPA quyết định trên đầu vào parser HCL2 ---
+# --- (c) OPA decision on the HCL2 parser input ---
 python3 "$REPO_ROOT/gates/local/adapters/tf_parse_input.py" \
   --conftest "$(command -v conftest)" --infra "$WORKLOAD/infra" \
   --out "$GATE_OUT/tf-normalized.input.json"
@@ -93,6 +93,6 @@ record iac-assessment.record.json <<EOF
  "policy_decisions": ["devsecops.network_exposure",
    "devsecops.storage_encryption", "devsecops.iam_least_privilege"],
  "plan_digest": "sha256:$(sha256_of "$GATE_OUT/tf-normalized.input.json")",
- "input_source": "conftest parse (HCL2) — terraform validate PASS sau refactor M5 (ghi trong validate.json); terraform plan JSON chưa sinh được tại chỗ vì plan cần gọi AWS API thật cho data source aws_availability_zones, môi trường kiểm chứng không có credential AWS thật"}
+ "input_source": "conftest parse (HCL2) — terraform validate PASS after the M5 refactor (recorded in validate.json); terraform plan JSON could not be generated locally because plan needs to call the real AWS API for data source aws_availability_zones, and the verification environment has no real AWS credentials"}
 EOF
 exit $rc
