@@ -1,20 +1,20 @@
-# iam_least_privilege — không wildcard trên `*`, không AdministratorAccess
+# iam_least_privilege — no wildcard on `*`, no AdministratorAccess
 
-- **Mã**: `devsecops.iam_least_privilege` · **Cơ chế**: OPA/Rego trên
-  IAM policy chuẩn hoá từ Terraform plan · **Gate tiêu thụ**: Gate 4
-  (IaC) + Gate 9 (vệ sinh pipeline, cho quyền token workflow) · **Bằng
-  chứng**: `access-review-report` + `policy-decision`.
+- **Code**: `devsecops.iam_least_privilege` · **Mechanism**: OPA/Rego over an
+  IAM policy normalised from the Terraform plan · **Consuming gate**: Gate 4
+  (IaC) + Gate 9 (pipeline hygiene, for workflow token permissions) · **Evidence**:
+  `access-review-report` + `policy-decision`.
 
-**Kiểm soát nào** (ánh xạ tham chiếu): SOC 2 CC6.1 (truy cập logic theo
-least privilege); PCI DSS 4.0 Yêu cầu 7 (hạn chế truy cập theo nhu cầu
-công việc) và Yêu cầu 8 (định danh duy nhất); ISO 27001 A.5.15 (kiểm
-soát truy cập); CPS 234 (kiểm soát bảo mật tương xứng với mối đe doạ).
+**Which control** (reference mapping): SOC 2 CC6.1 (logical access according to
+least privilege); PCI DSS 4.0 Requirement 7 (restrict access according to business need)
+and Requirement 8 (unique identification); ISO 27001 A.5.15 (access
+control); CPS 234 (security controls proportionate to the threat).
 
-**Vì sao**: policy `Action: *` trên `Resource: *` biến một credential bị
-lộ thành toàn quyền tài khoản; đây là lỗi cấu hình IAM bị khai thác
-nhiều nhất và cũng là lỗi dễ bắt nhất bằng policy.
+**Why**: a policy with `Action: *` on `Resource: *` turns a leaked credential
+into full account privileges; this is the most exploited IAM misconfiguration
+and also the easiest to catch with a policy.
 
-**Vi phạm thì sửa thế nào**: thu hẹp action theo đúng API mà workload
-gọi (tra CloudTrail/access advisor), gắn resource ARN cụ thể; không
-gắn managed policy quản trị cho role của workload — tạo policy riêng
-tối thiểu và ghi lý do trong IaC.
+**How to fix a violation**: narrow the action to exactly the APIs the workload
+calls (check CloudTrail/access advisor), attach a specific resource ARN; do not
+attach an administrative managed policy to a workload role — create a minimal
+dedicated policy and record the reason in the IaC.
