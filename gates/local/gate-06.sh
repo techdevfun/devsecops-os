@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Gate 6 — SBOM + attestation: Syft sinh SBOM CycloneDX của artefact,
-# Cosign ký + xác minh SBOM (khoá cục bộ tạm thời), provenance SLSA rút
-# gọn, và policy devsecops.provenance quyết định đủ điều kiện triển
-# khai. Chặn (exit 1) khi provenance DENY (thiếu SBOM/chữ ký/provenance
-# hoặc digest không khớp).
+# Gate 6 — SBOM + attestation: Syft generates a CycloneDX SBOM of the artefact,
+# Cosign signs + verifies the SBOM (temporary local key), condensed SLSA provenance
+# , and policy devsecops.provenance decides deployability
+# . Blocks (exit 1) when provenance DENYs (missing SBOM/signature/provenance
+# or a digest mismatch).
 source "$(dirname "$0")/lib.sh"
 gate_begin 06 sbom-attestation
 
