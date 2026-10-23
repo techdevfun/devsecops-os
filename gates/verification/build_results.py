@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Tổng hợp kết quả kiểm chứng M3 từ bằng chứng các gate đã sinh +
-summary.tsv của runner -> results.json và results.md (bảng gate x biến
-thể + đối chiếu kỳ vọng bắt buộc của M3). Mọi con số đều đọc từ file
-đầu ra thật của lần chạy, không gõ tay.
+"""Aggregate the M3 verification results from the evidence the gates produced +
+the runner's summary.tsv -> results.json and results.md (gate x variant
+table + check against M3's mandatory expectations). Every number is read from a real
+output file of the run, never typed by hand.
 """
 import json
 from pathlib import Path
@@ -74,8 +74,8 @@ def variant_data(variant: str) -> dict:
     d, n = decision(out, "gate-09-pipeline-hygiene", "pipeline_policy")
     g["09"] = {"decision": d, "violations": n}
     note = out / "gate-10-ai-pr-review" / "disabled-note.txt"
-    g["10"] = {"state": "disabled (mặc định pha 1)" if note.exists()
-               else "xem log"}
+    g["10"] = {"state": "disabled (phase 1 default)" if note.exists()
+               else "see log"}
     return {"variant": variant, "timing": summary,
             "total_seconds": round(total_t, 2),
             "max_gate_seconds": round(max_t, 2), "gates": g}
