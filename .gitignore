@@ -6,7 +6,7 @@ __pycache__/
 venv/
 .pytest_cache/
 
-# Secrets / local env — không bao giờ commit
+# Secrets / local env — never commit
 .env
 *.pem
 *.key
@@ -21,19 +21,19 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-# tfvars chứa giá trị thật của từng môi trường (bản .example thì được commit)
+# tfvars contain the real values for each environment (the .example version is committed)
 *.tfvars
 !*.tfvars.example
 
-# Node (frontend tĩnh hiện không có build, giữ sẵn)
+# Node (the static frontend currently has no build, kept ready)
 node_modules/
 
-# Evidence bundles sinh ra khi chạy gates (M4) — bằng chứng thuộc về
-# hạ tầng của tổ chức sử dụng, không thuộc repo này
+# Evidence bundles generated when running the gates (M4) — evidence belongs to
+# the infrastructure of the organisation using it, not to this repo
 evidence/bundles/
 evidence/store/
-# Đầu ra từng lần chạy gates (M3) + log thô kiểm chứng — artefact vận
-# hành, không phải mã nguồn (bảng tổng hợp nằm ở gates/verification/results.*)
+# Output of each gate run (M3) + raw verification logs — operational
+# artefacts, not source code (the summary table lives in gates/verification/results.*)
 evidence/output/
 gates/verification/logs/
 
