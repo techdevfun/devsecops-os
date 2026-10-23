@@ -1,28 +1,28 @@
-# kyverno/workload-baseline — chuẩn runtime tối thiểu trên Kubernetes
+# kyverno/workload-baseline — minimum runtime baseline on Kubernetes
 
 - **File**: `../kyverno/workload-baseline.yaml` (ClusterPolicy,
-  `validationFailureAction: Enforce`) · **Cơ chế**: Kyverno admission
-  — **lý do cần Kyverno bên cạnh OPA**: kiểm soát tại thời điểm
-  admission của cluster (khi có người/kệ thống nộp manifest trực tiếp,
-  ngoài pipeline) chỉ thực thi được bằng admission controller; OPA
-  trong pack này đánh giá ở tầng CI/plan · **Gate tiêu thụ**: điểm thực
-  thi ở tầng đích (runtime), cặp với Gate 4/6 phía CI · **Bằng chứng**:
-  `policy-decision` (từ PolicyReport của Kyverno do collector gom).
+  `validationFailureAction: Enforce`) · **Mechanism**: Kyverno admission
+  — **reason Kyverno is needed alongside OPA**: control at the
+  admission time of the cluster (when a person/system submits a manifest directly,
+  outside the pipeline) can only be enforced by an admission controller; OPA
+  in this pack evaluates at the CI/plan layer · **Consuming gate**: the enforcement point
+  at the target layer (runtime), paired with Gate 4/6 on the CI side · **Evidence**:
+  `policy-decision` (from Kyverno PolicyReports collected by the collector).
 
-**Kiểm soát nào** (ánh xạ tham chiếu): ISO 27001 A.8.9 (quản lý cấu
-hình — chuẩn cấu hình tối thiểu); PCI DSS 4.0 Yêu cầu 2 (không dùng
-cấu hình mặc định của vendor); SOC 2 CC6.6 (ranh giới hệ thống) và
+**Which control** (reference mapping): ISO 27001 A.8.9 (configuration
+management — minimum configuration baseline); PCI DSS 4.0 Requirement 2 (do not use
+vendor default configurations); SOC 2 CC6.6 (system boundaries) and
 CC7.1.
 
-**Nội dung**: (1) Pod/container chạy non-root, cấm `runAsUser: 0`;
-(2) mọi container có requests/limits CPU + memory; (3)
-`allowPrivilegeEscalation: false` và drop capability `ALL`.
+**Contents**: (1) Pods/containers run non-root, forbid `runAsUser: 0`;
+(2) every container has CPU + memory requests/limits; (3)
+`allowPrivilegeEscalation: false` and drop capability `ALL`.
 
-**Kiểm chứng cục bộ (M2)**: bằng Kyverno CLI — manifest clean của
-workload đạt 3/3 rule; fixture `../fixtures/k8s-bad-pod.yaml` (root,
-privilege escalation, không limits) rớt 3/3. Xem
+**Local verification (M2)**: with the Kyverno CLI — the clean workload manifest
+passes 3/3 rules; the fixture `../fixtures/k8s-bad-pod.yaml` (root,
+privilege escalation, no limits) fails 3/3. See
 `../harness/kyverno_check.sh`.
 
-**Vi phạm thì sửa thế nào**: đặt `securityContext` ở pod và container
-như manifest mẫu của workload; bổ sung `resources.requests/limits`
-theo sizing thật của service.
+**How to fix a violation**: set `securityContext` on the pod and container
+as in the workload's sample manifest; add `resources.requests/limits`
+according to the service's real sizing.
