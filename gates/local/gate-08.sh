@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Gate 8 — Ưu tiên EPSS/CISA KEV: làm giàu lỗ hổng của gate 3 (+ gate 5
-# nếu có trong cùng lần chạy) bằng feed thật, chạy policy
-# devsecops.dependency_kev và sinh evidence `vuln-risk-ranking`.
-# Chặn (exit 1) khi dependency dính CVE thuộc KEV hoặc EPSS >= ngưỡng
-# 0.5 (điều kiện chặn của blueprint mục 5.1 — cơ chế chống alert fatigue).
+# Gate 8 — EPSS/CISA KEV prioritization: enrich gate 3's vulnerabilities (+ gate 5's
+# if present in the same run) with the real feeds, run policy
+# devsecops.dependency_kev and produce `vuln-risk-ranking` evidence.
+# Blocks (exit 1) when a dependency is hit by a CVE in KEV or with EPSS >= the
+# 0.5 threshold (the blocking condition of blueprint section 5.1 — the anti-alert-fatigue mechanism).
 source "$(dirname "$0")/lib.sh"
 gate_begin 08 kev-epss
 
 NORM="$OUT_ROOT/gate-03-sca/normalized.json"
 if [ ! -f "$NORM" ]; then
-  echo "[gate 08] không thấy đầu ra gate 3 — tự chạy osv-scanner"
+  echo "[gate 08] gate 3 output not found — running osv-scanner"
   osv-scanner scan source --recursive --format json \
     --output-file "$GATE_OUT/osv.json" "$WORKLOAD" >/dev/null 2>&1
   python3 "$REPO_ROOT/gates/local/adapters/osv_normalize.py" \
