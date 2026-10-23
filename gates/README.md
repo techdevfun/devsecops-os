@@ -1,101 +1,101 @@
-# CI security gates — M3 (đã cài đặt, kiểm chứng cục bộ)
+# CI security gates — M3 (installed, locally verified)
 
-Bộ 10 gates của mục 5 blueprint đã được cài đặt ở M3 và kiểm chứng
-bằng công cụ thật trên cả hai biến thể workload mẫu. Kết quả đo:
-`gates/verification/results.md` (log thô: `gates/verification/logs/`).
+The blueprint section 5 suite of 10 gates was installed at M3 and verified
+with real tools on both sample workload variants. Measured results:
+`gates/verification/results.md` (raw logs: `gates/verification/logs/`).
 
-## Cấu trúc — vì sao gates nằm ở hai nơi
+## Structure — why the gates live in two places
 
-GitHub chỉ nạp reusable workflow từ `.github/workflows/` của repo,
-nên 11 file YAML (10 gate + `all-gates.yml`) nằm ở đó. Nhưng mã chạy
-thật của mỗi gate là MỘT script `gates/local/gate-NN.sh` — workflow
-chỉ checkout, tải công cụ đã ghim (phiên bản + sha256 trong
-`gates/local/fetch_tools.sh`) rồi gọi đúng script đó. Nhờ vậy bản chạy
-trên GitHub và bản chạy kiểm chứng cục bộ là **cùng một mã**, không
-có chuyện "CI một đằng, máy dev một nẻo".
+GitHub only loads reusable workflows from the repo's `.github/workflows/`,
+so the 11 YAML files (10 gates + `all-gates.yml`) live there. But the real
+runnable code of each gate is a SINGLE script `gates/local/gate-NN.sh` — the workflow
+only checks out, downloads the pinned tools (version + sha256 in
+`gates/local/fetch_tools.sh`), then calls exactly that script. That way the run
+on GitHub and the locally verified run are **the same code**, with
+no "CI one way, dev machine another".
 
-| Thư mục/file | Vai trò |
+| Directory/file | Role |
 |---|---|
-| `.github/workflows/gate-NN-*.yml` | Reusable workflow (`workflow_call`) cho từng gate |
-| `.github/workflows/all-gates.yml` | Workflow tổng: chạy cả 10 gate trên một biến thể workload + gom artefact (collector thật là M4) |
-| `gates/local/gate-NN.sh` | Mã chạy thật của gate (dùng chung CI + cục bộ) |
-| `gates/local/lib.sh` | Thư viện chung: định danh lần chạy, ghi evidence record, gọi OPA |
-| `gates/local/adapters/*.py` | Bộ chuyển đổi đầu ra scanner → input của policy pack / evidence record |
-| `gates/local/fetch_tools.sh` | Tải công cụ đã ghim phiên bản + kiểm sha256 |
-| `gates/verification/` | Runner + kết quả kiểm chứng cục bộ M3 |
+| `.github/workflows/gate-NN-*.yml` | Reusable workflow (`workflow_call`) for each gate |
+| `.github/workflows/all-gates.yml` | Umbrella workflow: runs all 10 gates on one workload variant + collects artefacts (the real collector is M4) |
+| `gates/local/gate-NN.sh` | The gate's real runnable code (shared by CI + local runs) |
+| `gates/local/lib.sh` | Shared library: run identification, evidence record writing, OPA invocation |
+| `gates/local/adapters/*.py` | Converters from scanner output → policy pack input / evidence records |
+| `gates/local/fetch_tools.sh` | Downloads version-pinned tools + verifies sha256 |
+| `gates/verification/` | M3 local verification runner + results |
 
-## 10 gates ↔ công cụ ↔ policy ↔ bằng chứng
+## The 10 gates ↔ tools ↔ policies ↔ evidence
 
-| # | Gate | Công cụ thật (phiên bản khi kiểm chứng) | Policy của pack (M2) | Bằng chứng sinh ra |
+| # | Gate | Real tool (version at verification time) | Pack policy (M2) | Evidence produced |
 |---|---|---|---|---|
 | 1 | Secret scanning | gitleaks 8.30.1 | `devsecops.secret_findings` | SARIF + `policy-decision` |
-| 2 | SAST | Semgrep 1.182.1 (p/security-audit, p/python) — report-only | — (chưa có policy ở pha 1) | SARIF + tóm tắt theo severity |
-| 3 | SCA | osv-scanner 2.7.0 | (phát hiện; quyết định ở gate 8) | SARIF + bản chuẩn hoá lỗ hổng |
-| 4 | IaC scanning | Terraform 1.17.0 (validate) + Trivy 0.76.1 (config) + OPA 1.21.3 trên parse HCL2 của conftest 0.71.1 | `network_exposure`, `storage_encryption`, `iam_least_privilege` | SARIF + `policy-decision` ×3 + `iac-assessment` |
-| 5 | Container scanning | Trivy 0.76.1 (image) + đối chiếu KEV | `devsecops.base_image` | SARIF + `policy-decision` + tóm tắt CVE |
-| 6 | SBOM + attestation | Syft 1.55.0 + Cosign 3.1.4 | `devsecops.provenance` | `sbom` (CycloneDX, đã ký bundle) + `provenance-attestation` + `policy-decision` |
-| 7 | License compliance | Đọc từ SBOM CycloneDX | `devsecops.license_policy` | `policy-decision` |
-| 8 | EPSS/CISA KEV | Feed CISA KEV + FIRST EPSS tải tại thời điểm chạy | `devsecops.dependency_kev` | `vuln-risk-ranking` + `policy-decision` |
-| 9 | Vệ sinh pipeline | Quét chính `.github/workflows/` của repo | `devsecops.pipeline_policy` | `pipeline-config-verification` + `policy-decision` |
-| 10 | AI PR Review Gate | Flagship #1 — **chưa publish** | (khi bật: `pr-review-report`) | Tắt: chỉ ghi nhận trạng thái, không sinh evidence |
+| 2 | SAST | Semgrep 1.182.1 (p/security-audit, p/python) — report-only | — (no policy yet in phase 1) | SARIF + summary by severity |
+| 3 | SCA | osv-scanner 2.7.0 | (detection; the decision is at gate 8) | SARIF + normalized vulnerability list |
+| 4 | IaC scanning | Terraform 1.17.0 (validate) + Trivy 0.76.1 (config) + OPA 1.21.3 over conftest 0.71.1's HCL2 parse | `network_exposure`, `storage_encryption`, `iam_least_privilege` | SARIF + `policy-decision` ×3 + `iac-assessment` |
+| 5 | Container scanning | Trivy 0.76.1 (image) + KEV cross-check | `devsecops.base_image` | SARIF + `policy-decision` + CVE summary |
+| 6 | SBOM + attestation | Syft 1.55.0 + Cosign 3.1.4 | `devsecops.provenance` | `sbom` (CycloneDX, signed bundle) + `provenance-attestation` + `policy-decision` |
+| 7 | License compliance | Read from the CycloneDX SBOM | `devsecops.license_policy` | `policy-decision` |
+| 8 | EPSS/CISA KEV | CISA KEV feed + FIRST EPSS downloaded at run time | `devsecops.dependency_kev` | `vuln-risk-ranking` + `policy-decision` |
+| 9 | Pipeline hygiene | Scans the repo's own `.github/workflows/` | `devsecops.pipeline_policy` | `pipeline-config-verification` + `policy-decision` |
+| 10 | AI PR Review Gate | Flagship #1 — **not published yet** | (when enabled: `pr-review-report`) | Off: only records the state, produces no evidence |
 
-Gate 10 **mặc định TẮT** ở pha 1 (input `enabled`/`enable_ai_pr_review`
-mặc định `false`, biến `ENABLE_AI_PR_REVIEW` khi chạy cục bộ): wiring ở
-tầng PR đã có, workflow tổng chạy hoàn chỉnh khi nó tắt, và nghiệm thu
-pha 1 không phụ thuộc vào nó. Chỉ bật khi flagship #1 qua cổng publish
-riêng của nó.
+Gate 10 is **OFF by default** in phase 1 (the `enabled`/`enable_ai_pr_review` inputs
+default to `false`, and the `ENABLE_AI_PR_REVIEW` variable for local runs): the wiring at
+the PR layer is in place, the umbrella workflow runs end to end while it is off, and phase-1
+acceptance does not depend on it. It is only enabled once flagship #1 passes its own
+publish gate.
 
-## Cách chạy cục bộ
+## Running locally
 
 ```bash
-# chạy toàn bộ kiểm chứng (cả hai biến thể, có đo thời gian):
+# run the full verification (both variants, with timing):
 bash gates/verification/run_verification.sh
 
-# chạy một gate lẻ:
+# run a single gate:
 REPO_ROOT=$PWD WORKLOAD=$PWD/examples/payments-sample/planted \
 OUT_ROOT=$PWD/evidence/output/thu COMMIT_SHA=thu-1 \
   bash gates/local/gate-01.sh
 ```
 
-Mã thoát của gate: `0` = qua (không chặn), `1` = **bị chặn** theo điều
-kiện chặn mặc định của blueprint, `2` = lỗi hạ tầng/quét không hoàn
-tất (kèm `scan-error.json` — không bao giờ ngụy trang thành "sạch").
-Bằng chứng của mỗi lần chạy nằm ở `evidence/output/<lần chạy>/gate-NN-*/`
-đúng hợp đồng thư mục của M4 (xem `evidence/README.md`); M4 collector
-sẽ thu các `*.record.json` + artefact tại đó.
+Gate exit codes: `0` = pass (does not block), `1` = **blocked** under the blueprint's
+default blocking conditions, `2` = infrastructure error / incomplete scan
+(with `scan-error.json` — never disguised as "clean").
+Each run's evidence lives in `evidence/output/<run>/gate-NN-*/`
+per M4's directory contract (see `evidence/README.md`); the M4 collector
+will gather the `*.record.json` files + artefacts there.
 
-## Nguyên tắc vận hành (thừa hưởng bài học của flagship #1)
+## Operating principles (inheriting flagship #1's lessons)
 
-- Mặc định **report-only khi mới lắp** tại tổ chức áp dụng (cấu hình
-  `gates.<id>.mode` trong `docs/examples/devsecops-os.sample.yml`);
-  chỉ chuyển sang chặn sau khi chạy hiệu chuẩn trên lịch sử của chính
-  repo đó. Riêng lần kiểm chứng M3 dùng điều kiện chặn mặc định của
-  blueprint để chứng minh khả năng chặn.
-- Mọi lần quét bị cắt ngắn/lỗi dữ liệu phải **báo ồn ào** — gate 3 thử
-  lại khi osv-scanner lỗi phân giải và thoát 2 nếu vẫn không quét
-  được dependency nào; gate 5 ghi `scan-error.json` khi trivy lỗi.
-- Mỗi gate có đường tắt có kiểm soát và mọi lần dùng đường tắt đều ghi
-  lại trong bằng chứng (allowlist của gate 1 có hạn dùng; exception của
-  pack có ngày hết hạn trong policy `change_record`).
-- Evidence collector là "gate cuối" (M4): thiếu bằng chứng bắt buộc
-  của các gate đã bật → lần chạy bị gắn cờ `evidence incomplete`.
+- **Report-only by default when first installed** at an adopting organization (the
+  `gates.<id>.mode` setting in `docs/examples/devsecops-os.sample.yml`);
+  switching to blocking only happens after calibration runs over that repo's own
+  history. The M3 verification run itself used the blueprint's default blocking conditions
+  to prove the blocking capability.
+- Every truncated scan / data error must **fail loudly** — gate 3 retries
+  when osv-scanner hits a resolution error and exits 2 if it still cannot scan
+  any dependency; gate 5 writes `scan-error.json` when trivy errors.
+- Each gate has a controlled bypass, and every use of a bypass is recorded
+  in the evidence (gate 1's allowlist has an expiry; pack exceptions
+  have an expiry date in the `change_record` policy).
+- The evidence collector is the "final gate" (M4): missing mandatory evidence
+  from enabled gates → the run is flagged `evidence incomplete`.
 
-## Giới hạn đã biết (đo được ở M3, không che giấu)
+## Known limitations (measured at M3, not hidden)
 
-- **Terraform plan JSON chưa sinh được**: workload mẫu có lỗi vòng
-  tham chiếu thật giữa hai security group (`aws_security_group.alb` ↔
-  `aws_security_group.app` tham chiếu lẫn nhau trong rule inline) nên
-  cả `terraform validate` lẫn `plan` đều lỗi trên CẢ HAI biến thể.
-  Gate 4 vì thế dùng parse HCL2 chuẩn (`conftest parse`) làm đầu vào
-  cho 3 policy hạ tầng — thay cho bộ trích regex của harness M2 —
-  và ghi kết quả validate riêng trong bằng chứng. Muốn có plan JSON
-  phải refactor workload sang `aws_vpc_security_group_*_rule` riêng:
-  để lại cho M5 quyết (xem `gates/verification/results.md`).
-- Trên GitHub Actions mỗi job chạy độc lập: gate 7/8 tự sinh lại
-  SBOM/quét lại dependency khi không thấy đầu ra của gate 6/3 trong
-  cùng job (chạy cục bộ theo chuỗi thì dùng lại đầu ra có sẵn).
-- Gate 6 ở cục bộ đạt SLSA Build L1 (builder thường + khoá ký tạm
-  thời); mức cao hơn nhờ `slsa-github-generator` chỉ có khi chạy trên
-  GitHub Actions — triển khai ở M5.
-- Kyverno (2 policy phía cluster của pack) không thuộc 10 gate CI này;
-  chúng áp ở tầng admission của cluster theo tài liệu kiến trúc.
+- **Terraform plan JSON could not be generated yet**: the sample workload has a real circular
+  reference error between two security groups (`aws_security_group.alb` ↔
+  `aws_security_group.app` referencing each other in inline rules), so
+  both `terraform validate` and `plan` fail on BOTH variants.
+  Gate 4 therefore uses the standard HCL2 parse (`conftest parse`) as the input
+  for the 3 infrastructure policies — replacing the M2 harness's regex extractor —
+  and records the validate result separately in the evidence. Getting plan JSON
+  requires refactoring the workload to separate `aws_vpc_security_group_*_rule` resources:
+  left for M5 to decide (see `gates/verification/results.md`).
+- On GitHub Actions each job runs independently: gates 7/8 regenerate the
+  SBOM / rescan dependencies when they do not find gate 6/3's output in
+  the same job (chained local runs reuse the existing output).
+- Gate 6 locally reaches SLSA Build L1 (regular builder + temporary signing
+  key); higher levels via `slsa-github-generator` are only available when running on
+  GitHub Actions — deployed at M5.
+- Kyverno (the pack's 2 cluster-side policies) is not part of these 10 CI gates;
+  they apply at the cluster admission layer per the architecture documentation.
