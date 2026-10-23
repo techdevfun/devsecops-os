@@ -1,48 +1,54 @@
-# Đa môi trường: cloud + on-prem
+# Multiple environments: cloud + on-prem
 
-> **Trạng thái (M1)**: tài liệu thiết kế. Mẫu tham chiếu cloud chạy trên
-> workload mẫu (`examples/payments-sample/*/infra/` — Terraform AWS dạng
-> file tĩnh ở M1; việc `terraform apply` thật không thuộc phạm vi M1).
+> **Status (M1)**: design document. The cloud reference sample runs
+> on the sample workload (`examples/payments-sample/*/infra/` —
+> static Terraform AWS files at M1; a real `terraform apply` is out
+> of scope for M1).
 
-## 1. Nguyên tắc
+## 1. Principle
 
-**Cùng một policy pack áp cho mọi môi trường.** Khác biệt giữa cloud và
-on-prem khai báo bằng file giá trị (values) riêng cho từng môi trường —
-không fork policy, không sửa luật theo môi trường. Nếu một kiểm soát không
-thể thực thi ở một môi trường, đó là một *ngoại lệ được ghi lại trong bằng
-chứng*, không phải một bản policy lặng lẽ yếu hơn.
+**The same policy pack applies to every environment.** Differences
+between cloud and on-prem are declared in per-environment values
+files — no policy forks, no rules edited per environment. If a
+control cannot be enforced in an environment, that is an *exception
+recorded in the evidence*, not a silently weaker copy of the policy.
 
-## 2. Cloud (tham chiếu: AWS)
+## 2. Cloud (reference: AWS)
 
-- Hạ tầng khai báo bằng Terraform (mẫu trong workload: VPC, ECS Fargate,
-  ALB, IAM role theo OIDC federation — xem `identity-and-access.md`).
-- Pipeline chạy trên GitHub-hosted runner hoặc self-hosted runner trong
-  VPC của tổ chức; workload nhận danh tính qua OIDC, không qua access key.
-- Evidence store đặt trong hạ tầng của tổ chức (ví dụ bucket S3 có versioning
-  + khoá mã hoá + Object Lock nếu tổ chức yêu cầu bất biến).
+- Infrastructure declared in Terraform (in the sample workload: VPC,
+  ECS Fargate, ALB, IAM roles via OIDC federation — see
+  `identity-and-access.md`).
+- Pipelines run on GitHub-hosted runners or self-hosted runners
+  inside the organisation's VPC; workloads receive their identity
+  via OIDC, not via access keys.
+- The evidence store sits in the organisation's infrastructure (for
+  example an S3 bucket with versioning + encryption keys + Object
+  Lock if the organisation requires immutability).
 
 ## 3. On-prem
 
-- Kubernetes tự quản + **self-hosted runner** là đường triển khai on-prem
-  của pha 1: bộ gates chạy như trên cloud, chỉ khác nơi thực thi.
-- Admission bằng Kyverno trên cluster tự quản, dùng cùng policy đã biên
-  dịch từ pack (xem mẫu `docs/examples/kyverno-verify-images.yaml`).
-- Môi trường không có Internet: các công cụ quét và feed dữ liệu (CISA KEV,
-  EPSS) phải được mirror vào trong (cập nhật feed theo lịch qua một điểm
-  trung chuyển có kiểm soát) — đây là yêu cầu thiết kế ghi nhận ở M1; cơ
-  chế mirror cụ thể thuộc mốc cài đặt gates (M3) và sẽ được ghi rõ giới hạn
-  khi đó.
+- Self-managed Kubernetes + **self-hosted runners** are the phase-1
+  on-prem deployment path: the gate suite runs as it does on cloud,
+  only the place of execution differs.
+- Admission via Kyverno on the self-managed cluster, using the same
+  policies compiled from the pack (see the sample
+  `docs/examples/kyverno-verify-images.yaml`).
+- Air-gapped environments: scanning tools and data feeds (CISA KEV,
+  EPSS) must be mirrored in (feeds updated on a schedule through a
+  controlled relay point) — this is a design requirement recorded
+  at M1; the concrete mirroring mechanism belongs to the gates
+  milestone (M3) and its limits will be stated there.
 
-## 4. Bảng khác biệt được phép (values), ví dụ
+## 4. Permitted differences (values), example
 
-| Hạng mục | Cloud (AWS) | On-prem |
+| Item | Cloud (AWS) | On-prem |
 |---|---|---|
-| Nơi chạy gates | GitHub-hosted hoặc self-hosted runner | Self-hosted runner trong DC |
-| Danh tính workload | GitHub OIDC → IAM role | OIDC của cluster / SPIFFE (thiết kế pha sau) |
-| Registry | ECR của tổ chức | Registry nội bộ (Harbor…) |
-| Evidence store | S3 (versioning + SSE) | Object storage nội bộ tương đương |
-| Feed KEV/EPSS | Tải trực tiếp từ CISA/FIRST | Qua mirror nội bộ |
+| Where the gates run | GitHub-hosted or self-hosted runner | Self-hosted runner in the DC |
+| Workload identity | GitHub OIDC → IAM role | Cluster OIDC / SPIFFE (later-phase design) |
+| Registry | The organisation's ECR | Internal registry (Harbor…) |
+| Evidence store | S3 (versioning + SSE) | Equivalent internal object storage |
+| KEV/EPSS feeds | Downloaded directly from CISA/FIRST | Via an internal mirror |
 
-Những hạng mục **không** được khác theo môi trường: danh mục gates đang
-bật, ngưỡng chặn đã hiệu chuẩn, định dạng bằng chứng và yêu cầu toàn vẹn
-(SHA-256 manifest).
+Items that must **not** differ by environment: the enabled gate
+catalogue, the calibrated blocking thresholds, the evidence format
+and the integrity requirement (SHA-256 manifest).
