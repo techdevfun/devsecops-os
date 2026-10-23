@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Chuyển báo cáo JSON của gitleaks (gate 1) thành input chuẩn hoá cho
-policy devsecops.secret_findings — thay bộ trích xuất regex của harness
-M2 bằng đầu ra scanner thật. File trong input được ghi tương đối theo
-thư mục workload để khớp định dạng pack.
+"""Convert gitleaks' JSON report (gate 1) into the normalized input for
+policy devsecops.secret_findings — replacing the M2 harness's regex extractor
+with real scanner output. Files in the input are recorded relative to the
+workload directory to match the pack format.
 """
 import argparse
 import json
