@@ -1,51 +1,63 @@
-# Điểm tích hợp: GitHub / Harness / GitLab
+# Integration points: GitHub / Harness / GitLab
 
-> **Trạng thái (M1)**: tài liệu thiết kế điểm nối. Định vị bất biến của hệ:
-> **tích hợp với các nền tảng tổ chức đã có, không đối đầu trực diện với họ
-> ở mảng quét pipeline** (phân tích đối thủ đầy đủ nằm trong blueprint của
-> dự án).
+> **Status (M1)**: design document for the connection points. The
+> system's invariant positioning: **integrate with the platforms an
+> organisation already has — do not confront them head-on in
+> pipeline scanning** (the full competitor analysis is in the
+> project blueprint).
 
-## 1. GitHub (nền chính của pha 1)
+## 1. GitHub (the primary platform of phase 1)
 
-- **Actions**: nơi các gate chạy (reusable workflows — M3).
-- **Code scanning**: mọi scanner bắt buộc xuất SARIF để kết quả lên GitHub
-  code scanning — bề mặt xem finding chung cho cả đội, không phụ thuộc
-  công cụ quét cụ thể.
-- **Attestation store của GitHub**: nơi đính kèm SLSA provenance cho
-  artefact build trong Actions (bên cạnh chữ ký Cosign).
-- **Tính năng gốc của nền tảng được dùng lại, không viết lại**: Dependabot,
-  secret scanning/push protection của GitHub được khuyến nghị bật khi tổ
-  chức có giấy phép; gates của hệ này bổ sung lớp policy + bằng chứng phía
-  trên, không nhân đôi chức năng nền tảng đã có.
+- **Actions**: where the gates run (reusable workflows — M3).
+- **Code scanning**: every scanner is required to emit SARIF so
+  results land in GitHub code scanning — one shared surface for the
+  whole team to view findings, independent of the specific scanning
+  tool.
+- **GitHub's attestation store**: where SLSA provenance for
+  artefacts built in Actions is attached (alongside the Cosign
+  signature).
+- **Native platform features are reused, not rewritten**: Dependabot
+  and GitHub secret scanning/push protection are recommended to be
+  enabled when the organisation holds the licences; this system's
+  gates add the policy + evidence layer on top and do not duplicate
+  platform functionality that already exists.
 
-## 2. Harness (tuỳ chọn, hai chiều)
+## 2. Harness (optional, two-way)
 
-Nếu tổ chức đã dùng Harness STO:
+If the organisation already uses Harness STO:
 
-- **Chiều đẩy sang Harness**: kết quả quét và trạng thái gate của hệ này
-  đẩy sang Harness qua API/webhook (định dạng SARIF/JSON), để Harness tiếp
-  tục là nơi điều phối và khử trùng finding của họ.
-- **Chiều độc lập**: policy pack + evidence của hệ này vẫn chạy và có giá
-  trị đầy đủ khi *không có* Harness — lớp quản trị + bằng chứng nằm trong
-  hạ tầng người dùng là phần hệ này đóng góp, không phụ thuộc vendor.
-- Hệ này không thay thế Harness STO, không cạnh tranh mảng điều phối
-  scanner; và ngược lại, sự hiện diện của Harness không làm mất lý do tồn
-  tại của lớp policy/bằng chứng mở.
+- **Push direction into Harness**: this system's scan results and
+  gate states are pushed into Harness via API/webhook (SARIF/JSON
+  formats), so Harness remains their orchestration and
+  finding-deduplication point.
+- **Independent direction**: this system's policy pack + evidence
+  still run, and carry their full value, when there is *no* Harness
+  — the governance + evidence layer living in the user's own
+  infrastructure is what this system contributes, independent of
+  any vendor.
+- This system does not replace Harness STO and does not compete in
+  scanner orchestration; and conversely, the presence of Harness
+  does not remove the reason for an open policy/evidence layer to
+  exist.
 
-## 3. GitLab (pha 3 — chỉ ghi nhận điểm nối ở pha 1)
+## 3. GitLab (phase 3 — connection points recorded only, in phase 1)
 
-- Policy pack (OPA/Rego) là tài sản dùng chung; khi port sang GitLab CI
-  (pha 3) chỉ thay lớp thực thi (CI template), không viết lại policy.
-- **Giới hạn trung thực**: chưa có kiểm chứng nào trên GitLab instance thật
-  ở thời điểm này (kể cả mẫu GitLab sẵn có của flagship #1 vẫn mang nhãn
-  "chưa kiểm chứng live"). Mọi nội dung GitLab trong tài liệu của pha 1 là
-  ý định thiết kế, không phải cam kết tương thích.
+- The policy pack (OPA/Rego) is the shared asset; when porting to
+  GitLab CI (phase 3), only the execution layer (CI templates)
+  changes — the policies are not rewritten.
+- **Honest limit**: there is no verification on a real GitLab
+  instance at this time (even flagship #1's ready-made GitLab sample
+  still carries a "not verified live" label). Everything about
+  GitLab in the phase-1 documents is design intent, not a
+  compatibility commitment.
 
-## 4. Các điểm nối khác (thiết kế)
+## 4. Other connection points (design)
 
-- **SIEM/SOC của tổ chức**: evidence store xuất báo cáo và (pha 2) sự kiện
-  sang hệ SOC hiện hữu qua API/webhook; lớp AI SecOps pha 2 nối sang
-  Vigil/Wazuh/Shuffle theo cùng nguyên tắc "đối tác tích hợp, không thay
-  thế".
-- **Issue tracker**: pha 1 chỉ dùng bề mặt GitHub (issue/PR comment); tích
-  hợp Jira/Linear là roadmap pha 2–3.
+- **The organisation's SIEM/SOC**: the evidence store exports
+  reports and (phase 2) events into the existing SOC system via
+  API/webhook; the phase-2 AI SecOps layer connects onward to
+  Vigil/Wazuh/Shuffle under the same "integration partner, not a
+  replacement" principle.
+- **Issue trackers**: phase 1 uses only the GitHub surface
+  (issues/PR comments); Jira/Linear integration is phase 2–3
+  roadmap.
