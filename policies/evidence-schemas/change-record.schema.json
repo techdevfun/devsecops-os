@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "devsecops-os evidence: change-record",
-  "description": "Hồ sơ thay đổi tự động theo release: PR + phê duyệt + kết quả gate + liên kết bằng chứng (đầu vào của change_record policy).",
+  "description": "Change record generated automatically per release: PR + approvals + gate results + evidence links (input of the change_record policy).",
   "type": "object",
   "required": [
     "evidence_type",
@@ -16,7 +16,7 @@
       "const": "change-record"
     },
     "exceptions": {
-      "description": "ngoại lệ còn hạn (nếu có)"
+      "description": "unexpired exception (if any)"
     }
   }
 }
