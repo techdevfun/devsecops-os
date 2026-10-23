@@ -4,7 +4,7 @@
 # for over 12 months, the pack is flagged "stale".
 pack:
   name: devsecops-os-policy-pack
-  version: 1.1.0
+  version: 1.2.0
   built_at: "2026-10-23"
   status: published (public — github.com/techdevfun/devsecops-os, phase 1 prerelease v1.0.0-phase1)
   mapping_notice: >-
