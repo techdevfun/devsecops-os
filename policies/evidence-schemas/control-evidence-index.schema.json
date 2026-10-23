@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "devsecops-os evidence: control-evidence-index",
-  "description": "Chỉ mục bằng chứng kiểm soát theo kỳ (quý) cho CPS 234: ánh xạ nhóm kiểm soát -> danh sách bằng chứng đã thu trong kỳ.",
+  "description": "Per-period (quarterly) control evidence index for CPS 234: mapping of control groups -> evidence collected in the period.",
   "type": "object",
   "required": [
     "evidence_type",
@@ -16,7 +16,7 @@
       "description": "{control_id: [evidence_id...]}"
     },
     "completeness": {
-      "description": "tỉ lệ kiểm soát có đủ bằng chứng (đánh giá bởi evidence_completeness)"
+      "description": "share of controls with complete evidence (assessed by evidence_completeness)"
     }
   }
 }
