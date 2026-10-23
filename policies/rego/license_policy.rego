@@ -1,6 +1,7 @@
-# license_policy — license của dependency (đọc từ SBOM) thuộc danh sách
-# cấm của tổ chức thì CHẶN; license chưa xác định thì cảnh báo bắt buộc
-# rà soát (không chặn ở pack v1).
+# license_policy — a dependency license (read from the SBOM) that
+# is on the organisation's denied list is BLOCKED; an undetermined
+# license triggers a mandatory review warning (not blocking in
+# pack v1).
 #
 # Input:
 #   { "components": [ {"name": "...", "version": "...",
@@ -17,11 +18,11 @@ denied := {l | some l in input.config.denied_licenses} if {
 deny contains msg if {
 	c := input.components[_]
 	denied[c.license]
-	msg := sprintf("component %s@%s dung license bi cam %s — thay the hoac xin phe duyet ngoai le (ISO A.5.19-A.5.22 tham chieu)", [c.name, c.version, c.license])
+	msg := sprintf("component %s@%s uses denied license %s — replace it or request an exception approval (ISO A.5.19-A.5.22 reference)", [c.name, c.version, c.license])
 }
 
 warn contains msg if {
 	c := input.components[_]
 	c.license == "NOASSERTION"
-	msg := sprintf("component %s@%s chua xac dinh duoc license — can ra soat thu cong truoc release", [c.name, c.version])
+	msg := sprintf("component %s@%s has no determined license — manual review required before release", [c.name, c.version])
 }
