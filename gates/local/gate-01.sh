@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Gate 1 — Secret scanning (gitleaks) + policy devsecops.secret_findings.
-# Chặn (exit 1) khi còn finding secret chưa allowlist (blueprint mục 5.1).
+# Blocks (exit 1) while a secret finding remains that is not allowlisted (blueprint section 5.1).
 source "$(dirname "$0")/lib.sh"
 gate_begin 01 secret
 
