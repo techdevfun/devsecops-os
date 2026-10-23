@@ -1,25 +1,25 @@
-# kyverno/verify-image-signatures — chỉ nhận image đã ký + có provenance
+# kyverno/verify-image-signatures — only accept signed images + provenance
 
 - **File**: `../kyverno/verify-image-signatures.yaml` (ClusterPolicy
-  dạng `verifyImages`) · **Cơ chế**: Kyverno admission + Sigstore
-  (Cosign keyless qua OIDC của GitHub Actions, tra Rekor) · **Gate
-  tiêu thụ**: điểm thực thi tầng đích của Gate 6; phía CI, quyết định
-  tương ứng do `devsecops.provenance` (Rego) đảm nhiệm · **Bằng
-  chứng**: `provenance-attestation` + `policy-decision`.
+  of type `verifyImages`) · **Mechanism**: Kyverno admission + Sigstore
+  (Cosign keyless via GitHub Actions OIDC, checking Rekor) · **Consuming
+  gate**: the target-layer enforcement point of Gate 6; on the CI side, the
+  corresponding decision is handled by `devsecops.provenance` (Rego) · **Evidence**:
+  `provenance-attestation` + `policy-decision`.
 
-**Kiểm soát nào** (ánh xạ tham chiếu): SSDF PS.3 (provenance); ISO
-27001 A.5.19–A.5.22, A.8.28; SOC 2 CC7.1 ở mức tham chiếu.
+**Which control** (reference mapping): SSDF PS.3 (provenance); ISO
+27001 A.5.19–A.5.22, A.8.28; SOC 2 CC7.1 at reference level.
 
-**Vì sao**: chữ ký kiểm chứng ở admission là chốt cuối — dù registry
-hay pipeline bị tác động, image không có chữ ký của danh tính workflow
-tổ chức và không có SLSA attestation khớp sẽ không được chạy. File này
-chính thức hoá mẫu M1 ở `docs/examples/kyverno-verify-images.yaml`.
+**Why**: signature verification at admission is the final checkpoint — even if the registry
+or pipeline is compromised, an image without the signature of the organisation's workflow identity
+and without a matching SLSA attestation will not run. This file
+formalises the M1 pattern at `docs/examples/kyverno-verify-images.yaml`.
 
-**Trạng thái kiểm chứng (nói thẳng)**: ở M2 chỉ kiểm chứng được bằng
-Kyverno CLI ở mức parse/áp cấu trúc. Rule `verifyImages` cần cluster
-thật + Rekor/Cosign để chạy — **chưa kiểm chứng runtime ở M2**, để lại
-cho M3/M5 trên môi trường Actions/cluster thử nghiệm. Trước khi dùng
-phải thay `<OWNER>/<REPO>`, registry và mẫu tên image.
+**Verification status (stated plainly)**: at M2 it could only be verified with
+the Kyverno CLI at parse/structure-application level. The `verifyImages` rule needs a real cluster
++ Rekor/Cosign to run — **not yet runtime-verified at M2**, left
+for M3/M5 on an Actions/test cluster environment. Before use
+`<OWNER>/<REPO>`, the registry and the image name pattern must be replaced.
 
-**Vi phạm thì sửa thế nào**: build image qua pipeline có ký keyless +
-attestation; không nới policy để nhận image ngoài pipeline.
+**How to fix a violation**: build the image through a pipeline with keyless signing +
+attestation; do not loosen the policy to accept images outside the pipeline.
