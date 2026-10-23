@@ -1,20 +1,21 @@
-# Policy pack v1 — metadata, phiên bản và lịch rà soát.
-# Quy tắc R4 của blueprint: mỗi khung ghi nguồn văn bản đã đối chiếu +
-# ngày đối chiếu; quá 12 tháng chưa rà soát thì pack bị đánh dấu "stale".
+# Policy pack v1 — metadata, versioning and review schedule.
+# Blueprint rule R4: each framework records the source text it was
+# checked against + the check date; if a framework has not been reviewed
+# for over 12 months, the pack is flagged "stale".
 pack:
   name: devsecops-os-policy-pack
-  version: 1.0.0
-  built_at: "2026-10-22"
-  status: local-only (M2 — chưa publish, chưa có repo GitHub)
+  version: 1.1.0
+  built_at: "2026-10-23"
+  status: local-only (M2 — not yet published, no GitHub repo yet)
   mapping_notice: >-
-    Mọi ánh xạ dưới đây là ÁNH XẠ THAM CHIẾU ở mức nhóm kiểm soát, phục
-    vụ thiết kế và chuẩn bị kiểm toán. Không phải chứng nhận tuân thủ
-    dưới bất kỳ khung nào.
+    All mappings below are REFERENCE MAPPINGS at control-group level,
+    for design and audit preparation. They are not a certification of
+    compliance under any framework.
 
 frameworks:
   - id: iso-27001-2022
     name: "ISO/IEC 27001:2022 (Annex A)"
-    source: "Nhóm kiểm soát Annex A theo cấu trúc 4 chủ đề của bản 2022; chi tiết điều khoản đối chiếu văn bản gốc khi tổ chức áp dụng"
+    source: "Annex A control groups following the 4-theme structure of the 2022 edition; clause-level detail is checked against the original text when an organisation adopts it"
     reviewed_at: "2026-10-22"
   - id: nist-csf-ssdf
     name: "NIST CSF 2.0 + SSDF (SP 800-218 v1.1)"
@@ -22,21 +23,21 @@ frameworks:
     reviewed_at: "2026-10-22"
   - id: pci-dss-4
     name: "PCI DSS v4.0"
-    source: "12 yêu cầu chính của PCI DSS 4.0 (PCI SSC)"
+    source: "The 12 main requirements of PCI DSS 4.0 (PCI SSC)"
     reviewed_at: "2026-10-22"
   - id: apra-cps-234
     name: "APRA CPS 234 (Information Security)"
-    source: "Nguyên tắc CPS 234 của APRA; chi tiết điều khoản đối chiếu văn bản APRA hiện hành khi build sâu (blueprint mục 8)"
+    source: "APRA CPS 234 principles; clause-level detail is checked against the current APRA text during the deep build (blueprint section 8)"
     reviewed_at: "2026-10-22"
   - id: apra-cps-230
     name: "APRA CPS 230 (Operational Risk Management)"
-    source: "Hàng CPS 230 trong blueprint thuộc PHA 2 — pack v1 chưa có policy cho CPS 230"
+    source: "The CPS 230 row in the blueprint belongs to PHASE 2 — pack v1 has no policy for CPS 230 yet"
     reviewed_at: "2026-10-22"
   - id: soc-2
     name: "SOC 2 (AICPA Trust Services Criteria, CC series)"
-    source: "CC6/CC7/CC8 của TSC 2017 (revised)"
+    source: "CC6/CC7/CC8 of TSC 2017 (revised)"
     reviewed_at: "2026-10-22"
 
 engines:
-  opa: ">= 1.0 (Rego v1) — kiểm chứng cục bộ bằng OPA 1.21.3"
-  kyverno: ">= 1.10 — kiểm chứng cục bộ bằng Kyverno CLI 1.19.2 (mức apply/parse; verifyImages cần cluster)"
+  opa: ">= 1.0 (Rego v1) — verified locally with OPA 1.21.3"
+  kyverno: ">= 1.10 — verified locally with Kyverno CLI 1.19.2 (apply/parse level; verifyImages needs a cluster)"
