@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Gate 4 — sinh input chuẩn hoá cho 3 policy IaC của pack
-(network_exposure, storage_encryption, iam_least_privilege) từ đầu ra
-của một HCL2 parser chuẩn (`conftest parse`, Open Policy Agent project),
-THAY bộ trích xuất regex của harness M2.
+"""Gate 4 — generate the normalized input for the pack's 3 IaC policies
+(network_exposure, storage_encryption, iam_least_privilege) from the output
+of a standard HCL2 parser (`conftest parse`, Open Policy Agent project),
+REPLACING the M2 harness's regex extractor.
 
-Lý do không dùng Terraform plan JSON: sau refactor M5 (rule SG tách
-sang aws_vpc_security_group_*_rule) thì `terraform validate` đã PASS,
-nhưng `terraform plan` vẫn cần quyền gọi AWS API thật cho data source
-aws_availability_zones — môi trường kiểm chứng không có credential AWS
-thật nên plan JSON không sinh được ở đây. Parser HCL2 cho cùng một mô
-hình tài nguyên đã khai báo; các tham chiếu ${var.*} được phân giải từ
-default trong variables.tf, tham chiếu tài nguyên giữ dạng địa chỉ.
-Rule dạng tài nguyên riêng (aws_vpc_security_group_ingress_rule) được
-gộp vào danh sách ingress của SG đích, giữ nguyên định dạng đầu ra.
+Why not Terraform plan JSON: after the M5 refactor (SG rules split out
+into aws_vpc_security_group_*_rule), `terraform validate` PASSes,
+but `terraform plan` still needs permission to call the real AWS API for data source
+aws_availability_zones — the verification environment has no real AWS credentials,
+so plan JSON cannot be generated here. The HCL2 parser yields the same model
+of the declared resources; ${var.*} references are resolved from the
+defaults in variables.tf, and resource references keep address form.
+Standalone-resource rules (aws_vpc_security_group_ingress_rule) are
+merged into the target SG's ingress list, keeping the output format unchanged.
 
-Định dạng đầu ra KHÔNG đổi so với pack: {security_groups, storage,
+The output format is UNCHANGED from the pack: {security_groups, storage,
 iam_policies, managed_policy_attachments}.
 """
 import argparse
@@ -29,12 +29,12 @@ def conftest_parse(conftest, path):
     r = subprocess.run([conftest, "parse", str(path)],
                        capture_output=True, text=True)
     if r.returncode != 0:
-        raise SystemExit(f"conftest parse lỗi ({path}): {r.stderr.strip()}")
+        raise SystemExit(f"conftest parse error ({path}): {r.stderr.strip()}")
     return json.loads(r.stdout)
 
 
 def bodies(parsed, rtype):
-    """resource.<type>.<name> -> {name: body} (conftest bọc mỗi body trong list)."""
+    """resource.<type>.<name> -> {name: body} (conftest wraps each body in a list)."""
     out = {}
     for name, items in (parsed.get("resource", {}).get(rtype, {}) or {}).items():
         out[name] = items[0] if isinstance(items, list) else items
@@ -75,7 +75,7 @@ def main() -> int:
     parsed = conftest_parse(a.conftest, infra / "main.tf")
     defaults = var_defaults(conftest_parse(a.conftest, infra / "variables.tf"))
 
-    # SG gắn với LB hướng Internet (internal=false) là SG "public web".
+    # An SG attached to an Internet-facing LB (internal=false) is the "public web" SG.
     lbs = bodies(parsed, "aws_lb")
     public_sgs = set()
     for lb in lbs.values():
@@ -105,9 +105,9 @@ def main() -> int:
         sgs.append({"name": f"aws_security_group.{name}",
                     "public_web": name in public_sgs, "ingress": ingress})
 
-    # Rule ingress dạng tài nguyên riêng (aws_vpc_security_group_
-    # ingress_rule — dạng chuẩn sau refactor M5): gộp vào ingress của
-    # SG đích để định dạng policy input không đổi.
+    # Standalone-resource ingress rules (aws_vpc_security_group_
+    # ingress_rule — the standard form after the M5 refactor): merge into the
+    # target SG's ingress so the policy input format is unchanged.
     by_sg_name = {sg["name"]: sg for sg in sgs}
     standalone = bodies(parsed, "aws_vpc_security_group_ingress_rule")
     for body in standalone.values():
@@ -122,8 +122,8 @@ def main() -> int:
         cidr4 = body.get("cidr_ipv4")
         if cidr4 is not None:
             if str(cidr4).strip() == "${each.value}":
-                # for_each trên một biến danh sách: mở rộng theo
-                # default của biến (ví dụ allowed_ingress_cidrs).
+                # for_each over a list variable: expand using
+                # the variable's default (for example allowed_ingress_cidrs).
                 vm = re.search(r"var\.([A-Za-z0-9_]+)",
                                str(body.get("for_each", "")))
                 if vm and isinstance(defaults.get(vm.group(1)), list):
