@@ -1,20 +1,20 @@
-# license_policy — license cấm trong SBOM thì chặn
+# license_policy — block if a prohibited license is in the SBOM
 
-- **Mã**: `devsecops.license_policy` · **Cơ chế**: OPA/Rego trên danh
-  sách component + license đọc từ SBOM · **Gate tiêu thụ**: Gate 7
-  (license compliance), chạy sau Gate 6 (SBOM) · **Bằng chứng**:
+- **Code**: `devsecops.license_policy` · **Mechanism**: OPA/Rego over the
+  component + license list read from the SBOM · **Consuming gate**: Gate 7
+  (license compliance), run after Gate 6 (SBOM) · **Evidence**:
   `sbom` + `policy-decision`.
 
-**Kiểm soát nào** (ánh xạ tham chiếu): ISO 27001 A.5.19–A.5.22 (quan
-hệ nhà cung cấp — điều kiện sử dụng phần mềm bên thứ ba); SSDF PS.3/
-PW.4 (bảo vệ và tái sử dụng phần mềm an toàn); SOC 2 CC6.1 (kiểm soát
-thành phần đưa vào hệ thống) ở mức tham chiếu.
+**Which control** (reference mapping): ISO 27001 A.5.19–A.5.22 (supplier
+relationships — terms of use for third-party software); SSDF PS.3/
+PW.4 (protect and reuse software securely); SOC 2 CC6.1 (control of
+components brought into the system) at reference level.
 
-**Vì sao**: license copyleft mạnh (AGPL/GPL) lọt vào sản phẩm phân phối
-có thể kéo theo nghĩa vụ công bố mã nguồn ngoài ý muốn; license không
-xác định được (NOASSERTION) là điểm mù pháp lý phải rà soát tay.
+**Why**: strong copyleft licenses (AGPL/GPL) entering a distributed product
+can entail an unintended obligation to disclose source code; a license that
+cannot be determined (NOASSERTION) is a legal blind spot that must be reviewed manually.
 
-**Vi phạm thì sửa thế nào**: thay component bằng phương án license
-cho phép, hoặc xin phê duyệt ngoại lệ của tổ chức và ghi vào cấu hình
-`denied_licenses`/allowlist của repo; license NOASSERTION thì xác minh
-thủ công từ trang dự án gốc rồi khai báo lại trong SBOM.
+**How to fix a violation**: replace the component with a permissively licensed alternative,
+or request an organisational exception approval and record it in the repo's
+`denied_licenses`/allowlist configuration; for a NOASSERTION license, verify
+manually from the original project page and then declare it again in the SBOM.
