@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Harness kiểm chứng pack v1 (M2).
+"""Verification harness for pack v1 (M2).
 
-Chạy:
-  1. build_workload_fixtures.py — sinh input từ file thật của workload.
-  2. `opa test` trên toàn bộ policies/rego (unit test từng policy).
-  3. `opa eval` cho từng ca trong expectations.json (fixture tĩnh +
-     đối chiếu planted-vs-clean bắt buộc của M2).
-  4. Kiểm chứng Kyverno: parse YAML + (nếu có kyverno CLI) apply thử;
-     không có CLI thì chạy bộ kiểm tra cấu trúc tương đương bằng Python
-     trên 3 rule của workload-baseline đối với manifest của workload.
+Runs:
+  1. build_workload_fixtures.py — generates inputs from the workload's real files.
+  2. `opa test` over all of policies/rego (unit tests per policy).
+  3. `opa eval` for each case in expectations.json (static fixtures +
+     the mandatory M2 planted-vs-clean comparison).
+  4. Kyverno verification: YAML parsing + (if the kyverno CLI exists)
+     an apply trial; without the CLI, an equivalent structural check
+     in Python of the 3 workload-baseline rules against the workload
+     manifest.
 
-Thoát mã 0 khi mọi kiểm chứng đạt kỳ vọng.
+Exits 0 when every check meets expectations.
 """
 import json
 import subprocess
@@ -30,7 +31,7 @@ def find_opa() -> str:
     p = which("opa")
     if p:
         return p
-    raise SystemExit("Không tìm thấy opa binary (~/workspace/tools/opa hoặc PATH)")
+    raise SystemExit("opa binary not found (~/workspace/tools/opa or PATH)")
 
 
 def opa_eval(opa, package, input_path):
@@ -40,7 +41,7 @@ def opa_eval(opa, package, input_path):
          "--input", str(input_path), "--format", "json", q],
         capture_output=True, text=True)
     if out.returncode != 0:
-        raise RuntimeError(f"opa eval lỗi ({package}): {out.stderr.strip()}")
+        raise RuntimeError(f"opa eval failed ({package}): {out.stderr.strip()}")
     res = json.loads(out.stdout)["result"]
     if not res:
         return []
@@ -53,7 +54,7 @@ def main() -> int:
     ver = subprocess.run([opa, "version"], capture_output=True, text=True).stdout
     print("[harness] " + " | ".join(ver.splitlines()[:2]))
 
-    print("\n== 1. Sinh fixture từ workload thật ==")
+    print("\n== 1. Generate fixtures from the real workload ==")
     r = subprocess.run([sys.executable, str(HERE / "build_workload_fixtures.py")],
                        capture_output=True, text=True)
     print(r.stdout.strip())
@@ -61,16 +62,16 @@ def main() -> int:
         print(r.stderr)
         return 1
 
-    print("\n== 2. opa test (unit test từng policy) ==")
+    print("\n== 2. opa test (unit tests per policy) ==")
     r = subprocess.run([opa, "test", str(POLICIES / "rego"), "-v"],
                        capture_output=True, text=True)
     print(r.stdout.strip())
     if r.returncode != 0:
         print(r.stderr.strip())
-        print("KẾT QUẢ: opa test THẤT BẠI")
+        print("RESULT: opa test FAILED")
         return 1
 
-    print("\n== 3. Đối chiếu fixture + planted-vs-clean ==")
+    print("\n== 3. Fixture + planted-vs-clean comparison ==")
     exp = json.loads((HERE / "expectations.json").read_text())
     failures = 0
     for chk in exp["checks"]:
@@ -79,11 +80,11 @@ def main() -> int:
         got = "deny" if deny else "pass"
         ok = got == chk["expect"]
         failures += 0 if ok else 1
-        print(f"  [{'OK ' if ok else 'SAI'}] {chk['name']}: "
-              f"kỳ vọng={chk['expect']} thực tế={got} (deny={len(deny)})")
+        print(f"  [{'OK ' if ok else 'FAIL'}] {chk['name']}: "
+              f"expected={chk['expect']} actual={got} (deny={len(deny)})")
         for d in deny:
             print(f"        - {d}")
-    print(f"\n== Tổng: {len(exp['checks']) - failures}/{len(exp['checks'])} đạt ==")
+    print(f"\n== Total: {len(exp['checks']) - failures}/{len(exp['checks'])} passed ==")
     return 1 if failures else 0
 
 
