@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Gate 5 — tổng hợp kết quả quét image của Trivy: đếm theo severity và
-áp quy tắc chặn của blueprint cho gate 5 (CVE CRITICAL có bản vá VÀ
-thuộc CISA KEV). Đồng thời xuất danh sách lỗ hổng chuẩn hoá để gate 8
-xếp hạng chung với gate 3.
+"""Gate 5 — aggregate Trivy's image scan results: count by severity and
+apply the blueprint's blocking rule for gate 5 (a CRITICAL CVE that has a fix AND
+belongs to CISA KEV). Also emit the normalized vulnerability list so gate 8
+can rank it together with gate 3's.
 """
 import argparse
 import json
@@ -41,8 +41,8 @@ def main() -> int:
                "blocking_critical_fixed_kev": blocking}
     Path(a.out_summary).write_text(
         json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
-    print(f"[image_block_check] tổng {len(vulns)} lỗ hổng {counts}; "
-          f"thuộc nhóm chặn (CRITICAL+fixed+KEV): {len(blocking)}")
+    print(f"[image_block_check] total {len(vulns)} vulnerabilities {counts}; "
+          f"in the blocking group (CRITICAL+fixed+KEV): {len(blocking)}")
     for b in blocking:
         print(f"    - {b['id']} {b['package']}=={b['version']} fixed={b['fixed']}")
     return 0
