@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Gate 7 — chuyển SBOM CycloneDX (Syft, gate 6) thành input cho policy
+"""Gate 7 — convert the CycloneDX SBOM (Syft, gate 6) into the input for policy
 devsecops.license_policy: {components: [{name, version, license}],
-config: {denied_licenses}}. License lấy từ khai báo của component;
-biểu thức (AND/OR) được tách thành từng license để policy đối chiếu.
+config: {denied_licenses}}. Licenses come from each component's declaration;
+expressions (AND/OR) are split into individual licenses for the policy to check.
 """
 import argparse
 import json
