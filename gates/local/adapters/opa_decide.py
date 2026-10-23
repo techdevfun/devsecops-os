@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Chạy một policy của pack (opa eval data.devsecops.<package>.deny) trên
-một input JSON đã chuẩn hoá, in verdict và ghi evidence record dạng
+"""Run one pack policy (opa eval data.devsecops.<package>.deny) over
+a normalized JSON input, print the verdict and write an evidence record of type
 `policy-decision` (schema policies/evidence-schemas/policy-decision).
 
-Exit 0 khi PASS (deny rỗng), 1 khi DENY, 2 khi lỗi chạy opa.
+Exit 0 on PASS (empty deny), 1 on DENY, 2 on an opa execution error.
 """
 import argparse
 import hashlib
@@ -34,7 +34,7 @@ def main() -> int:
          "--format", "json", q],
         capture_output=True, text=True)
     if r.returncode != 0:
-        print(f"[opa_decide] LỖI opa eval ({a.package}): {r.stderr.strip()}",
+        print(f"[opa_decide] ERROR in opa eval ({a.package}): {r.stderr.strip()}",
               file=sys.stderr)
         return 2
     res = json.loads(r.stdout).get("result") or []
@@ -56,7 +56,7 @@ def main() -> int:
     (Path(a.out) / name).write_text(
         json.dumps(rec, indent=2, ensure_ascii=False) + "\n")
     print(f"[opa_decide] {a.policy_id} (gate {a.gate}): "
-          f"{decision.upper()} ({len(deny)} vi phạm)")
+          f"{decision.upper()} ({len(deny)} violations)")
     for d in deny:
         print(f"    - {d}")
     return 1 if deny else 0
