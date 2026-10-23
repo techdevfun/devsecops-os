@@ -1682,7 +1682,7 @@
         "violations": 0
       },
       "10": {
-        "state": "disabled (mặc định pha 1)"
+        "state": "disabled (phase 1 default)"
       }
     }
   },
@@ -7479,7 +7479,7 @@
         "violations": 0
       },
       "10": {
-        "state": "disabled (mặc định pha 1)"
+        "state": "disabled (phase 1 default)"
       }
     }
   }
