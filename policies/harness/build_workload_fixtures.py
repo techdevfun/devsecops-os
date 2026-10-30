@@ -191,17 +191,46 @@ def extract_deps(variant_dir: Path) -> dict:
             "config": {"epss_threshold": 0.5}}
 
 
+def _parse_from_ref(ref: str):
+    """Split a Dockerfile FROM reference into (image, tag, digest).
+
+    Handles the forms that break naive ``rsplit(":", 1)`` parsing:
+
+    - ``registry.example.com:5000/php:8.3.0`` — a registry port colon
+      must not become the tag separator (hence the right-most split);
+    - ``php@sha256:<digest>`` — a digest-pinned reference carries the
+      digest, not a tag; the image name stays correct and the gate-11
+      policy treats the missing tag as unpinned (deny, ask for an
+      exact tag) instead of silently passing;
+    - bare ``php`` — defaults the tag to ``latest``, as before.
+    """
+    digest = None
+    if "@" in ref:
+        ref, digest = ref.split("@", 1)
+    if ":" in ref:
+        image, tag = ref.rsplit(":", 1)
+    else:
+        image, tag = ref, None if digest else "latest"
+    return image, tag, digest
+
+
 def extract_docker(variant_dir: Path) -> dict:
     images = []
     for line in (variant_dir / "Dockerfile").read_text().splitlines():
-        m = re.match(r"\s*FROM\s+(\S+)", line)
-        if m:
-            ref = m.group(1)
-            if ":" in ref:
-                image, tag = ref.rsplit(":", 1)
-            else:
-                image, tag = ref, "latest"
-            images.append({"image": image, "tag": tag, "digest": None})
+        m = re.match(r"\s*FROM\s+(.*)$", line, re.IGNORECASE)
+        if not m:
+            continue
+        # FROM accepts build flags before the reference, e.g.
+        # "FROM --platform=linux/amd64 php:8.3.0". Reading the first
+        # whitespace-separated token would mistake the flag for the
+        # image name, so the real runtime would evade the version-floor
+        # policy entirely (gate 11 false pass).
+        tokens = m.group(1).split()
+        ref = next((t for t in tokens if not t.startswith("--")), None)
+        if not ref:
+            continue
+        image, tag, digest = _parse_from_ref(ref)
+        images.append({"image": image, "tag": tag, "digest": digest})
     return {"dockerfiles": [{"path": "Dockerfile", "images": images}],
             "eol_images": EOL_IMAGES,
             "runtime_floors": load_runtime_floors()}
