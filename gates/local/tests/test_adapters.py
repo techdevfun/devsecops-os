@@ -410,6 +410,54 @@ class RuntimeInputTests(unittest.TestCase):
             doc = runtime_input.build_input(workload, {})
         self.assertEqual(doc["dockerfiles"], [])
 
+    def test_build_input_skips_from_flags_and_parses_digest_refs(self):
+        floors = json.loads(FLOORS_FILE.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            workload = self._workload(td, "\n".join([
+                "FROM --platform=linux/amd64 php:8.3.0-fpm",
+                "from registry.example.com:5000/php:8.4.27",
+                "FROM python@sha256:deadbeef",
+            ]) + "\n")
+            doc = runtime_input.build_input(workload, floors)
+        images = doc["dockerfiles"][0]["images"]
+        self.assertEqual(images, [
+            {"image": "php", "tag": "8.3.0-fpm", "digest": None},
+            {"image": "registry.example.com:5000/php",
+             "tag": "8.4.27", "digest": None},
+            {"image": "python", "tag": None,
+             "digest": "sha256:deadbeef"},
+        ])
+
+    @unittest.skipUnless(OPA.is_file(), "requires opa in ~/workspace/tools")
+    def test_gate11_denies_below_floor_behind_platform_flag(self):
+        floors = json.loads(FLOORS_FILE.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            workload = self._workload(
+                td, "FROM --platform=linux/amd64 php:8.3.0\n")
+            inp = td / "runtime-version.input.json"
+            run_cli("runtime_input.py", [
+                "--workload", str(workload),
+                "--floors", str(FLOORS_FILE),
+                "--out", str(inp)])
+            out_dir = td / "gate-out"
+            out_dir.mkdir()
+            proc = run_cli("opa_decide.py", [
+                "--opa", str(OPA),
+                "--bundle", str(REPO_ROOT / "policies" / "rego"),
+                "--package", "runtime_version",
+                "--input", str(inp),
+                "--policy-id", "devsecops.runtime_version",
+                "--gate", "11", "--out", str(out_dir),
+                "--commit-sha", COMMIT, "--timestamp", NOW],
+                expect=None)
+            self.assertEqual(proc.returncode, 1, proc.stderr)
+            rec = json.loads((out_dir / "policy-decision-"
+                              "runtime_version.json").read_text(
+                                  encoding="utf-8"))
+            self.assertEqual(rec["decision"], "deny")
+            self.assertIn("8.3.36", rec["violations"][0])
+
     @unittest.skipUnless(OPA.is_file(), "requires opa in ~/workspace/tools")
     def test_gate11_verdicts_via_opa_decide(self):
         floors = json.loads(FLOORS_FILE.read_text(encoding="utf-8"))
