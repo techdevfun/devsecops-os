@@ -191,13 +191,53 @@ def extract_deps(variant_dir: Path) -> dict:
             "config": {"epss_threshold": 0.5}}
 
 
+def _normalize_image_name(image: str) -> str:
+    """Reduce a Dockerfile image reference to its policy identity.
+
+    The same image is spelled many ways — ``php``,
+    ``docker.io/library/php``, ``public.ecr.aws/docker/library/php``,
+    ``registry.example.com:5000/php`` — and the pack policies match on
+    the bare name (``php``). Without normalisation a
+    registry-qualified spelling silently escapes the runtime floor
+    (gate 11) and the EOL base-image check (gate 5): the policy sees
+    an unknown image and passes a vulnerable runtime.
+
+    Docker's own reference rules decide what is stripped, so a private
+    namespaced image is never mistaken for the official one:
+
+    - the first path segment is a registry host iff it contains ``.``
+      or ``:`` or is ``localhost`` — drop it;
+    - what remains is the official image iff it ends in
+      ``library/<name>`` (Docker Hub's official-images namespace,
+      preserved by mirrors such as ECR Public's ``docker/library/``)
+      — keep only ``<name>``;
+    - anything else (``myteam/php``, ``ghcr.io/myteam/php``) is kept
+      verbatim: a namespaced build is a different image, not the
+      official runtime.
+    """
+    parts = image.split("/")
+    if len(parts) > 1 and ("." in parts[0] or ":" in parts[0]
+                           or parts[0] == "localhost"):
+        parts = parts[1:]
+    if len(parts) > 1 and parts[-2] == "library":
+        return parts[-1]
+    return "/".join(parts)
+
+
 def _parse_from_ref(ref: str):
     """Split a Dockerfile FROM reference into (image, tag, digest).
 
-    Handles the forms that break naive ``rsplit(":", 1)`` parsing:
+    Handles the forms that break naive ``rsplit(\":\", 1)`` parsing:
 
     - ``registry.example.com:5000/php:8.3.0`` — a registry port colon
-      must not become the tag separator (hence the right-most split);
+      must not become the tag separator (hence the split only on a
+      colon after the last ``/``), and the registry host is stripped
+      so the image matches the policy's bare name (``php``) instead
+      of escaping the floor check under a qualified spelling;
+    - ``registry.example.com:5000/php@sha256:<digest>`` — the same
+      port rule applies to digest-pinned refs, where a naive
+      ``rsplit(":", 1)`` would read the port as the tag separator
+      and mangle the image name;
     - ``php@sha256:<digest>`` — a digest-pinned reference carries the
       digest, not a tag; the image name stays correct and the gate-11
       policy treats the missing tag as unpinned (deny, ask for an
@@ -207,11 +247,14 @@ def _parse_from_ref(ref: str):
     digest = None
     if "@" in ref:
         ref, digest = ref.split("@", 1)
-    if ":" in ref:
+    # A tag colon must sit after the last "/" — a colon before it is a
+    # registry port (registry.example.com:5000/php), not a tag.
+    last = ref.rsplit("/", 1)[-1]
+    if ":" in last:
         image, tag = ref.rsplit(":", 1)
     else:
         image, tag = ref, None if digest else "latest"
-    return image, tag, digest
+    return _normalize_image_name(image), tag, digest
 
 
 def extract_docker(variant_dir: Path) -> dict:
