@@ -422,11 +422,50 @@ class RuntimeInputTests(unittest.TestCase):
         images = doc["dockerfiles"][0]["images"]
         self.assertEqual(images, [
             {"image": "php", "tag": "8.3.0-fpm", "digest": None},
-            {"image": "registry.example.com:5000/php",
-             "tag": "8.4.27", "digest": None},
+            {"image": "php", "tag": "8.4.27", "digest": None},
             {"image": "python", "tag": None,
              "digest": "sha256:deadbeef"},
         ])
+
+    def test_build_input_normalizes_registry_qualified_names(self):
+        # Same runtime, many spellings: docker.io/library/php,
+        # a private registry, ECR Public's docker/library mirror, a
+        # localhost registry — all must resolve to the bare policy
+        # name "php", or the floor check silently passes (gate 11
+        # evasion). A namespaced build is a different image and
+        # must NOT collapse: myteam/php stays myteam/php.
+        floors = json.loads(FLOORS_FILE.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as td:
+            workload = self._workload(td, "\n".join([
+                "FROM docker.io/library/php:8.3.0-fpm",
+                "FROM registry.example.com:5000/php:8.4.27",
+                "FROM public.ecr.aws/docker/library/php:8.3.0",
+                "FROM localhost:5000/php:8.3.0",
+                "FROM myteam/php:8.3.0",
+                "FROM ghcr.io/myteam/php:8.3.0",
+            ]) + "\n")
+            doc = runtime_input.build_input(workload, floors)
+        images = doc["dockerfiles"][0]["images"]
+        self.assertEqual(images, [
+            {"image": "php", "tag": "8.3.0-fpm", "digest": None},
+            {"image": "php", "tag": "8.4.27", "digest": None},
+            {"image": "php", "tag": "8.3.0", "digest": None},
+            {"image": "php", "tag": "8.3.0", "digest": None},
+            {"image": "myteam/php", "tag": "8.3.0", "digest": None},
+            {"image": "myteam/php", "tag": "8.3.0", "digest": None},
+        ])
+
+    def test_parse_from_ref_port_is_not_a_tag(self):
+        # A registry port colon before the last "/" is not a tag
+        # separator — with or without a digest pin.
+        bwf = runtime_input._load_harness_extractor()
+        self.assertEqual(
+            bwf._parse_from_ref("registry.example.com:5000/php"),
+            ("php", "latest", None))
+        self.assertEqual(
+            bwf._parse_from_ref(
+                "registry.example.com:5000/php@sha256:deadbeef"),
+            ("php", None, "sha256:deadbeef"))
 
     @unittest.skipUnless(OPA.is_file(), "requires opa in ~/workspace/tools")
     def test_gate11_denies_below_floor_behind_platform_flag(self):
@@ -465,6 +504,11 @@ class RuntimeInputTests(unittest.TestCase):
             ("FROM php:8.3.0\n", 1, "deny", "8.3.36"),
             ("FROM php:8.4.27\n", 0, "pass", None),
             ("FROM php:8.1.27\n", 1, "deny", "no fixed upstream release"),
+            # Registry-qualified spellings of the same vulnerable
+            # runtime must deny too — previously they passed.
+            ("FROM docker.io/library/php:8.1.0\n", 1, "deny",
+             "no fixed upstream release"),
+            ("FROM docker.io/library/php:8.4.27\n", 0, "pass", None),
         ]
         for dockerfile_text, rc_want, decision, needle in cases:
             with tempfile.TemporaryDirectory() as td:
